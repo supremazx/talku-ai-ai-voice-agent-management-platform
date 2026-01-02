@@ -1,20 +1,19 @@
-import React, { useMemo } from "react";
+import React from "react";
 import {
   LayoutDashboard,
   Building2,
   ListChecks,
   BarChart3,
   WalletCards,
+  Network,
   Activity,
+  ShieldAlert,
   Fingerprint,
   Settings,
   Mic,
-  BadgeAlert,
-  Radio,
-  Zap
+  BadgeAlert
 } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
 import {
   Sidebar,
   SidebarContent,
@@ -26,28 +25,18 @@ import {
   SidebarMenuButton,
 } from "@/components/ui/sidebar";
 import { cn } from "@/lib/utils";
-import { api } from "@/lib/api-client";
-import type { GlobalCall } from "@shared/types";
+const items = [
+  { title: "Overview", icon: LayoutDashboard, url: "/admin" },
+  { title: "Tenants", icon: Building2, url: "/admin/tenants" },
+  { title: "Global Calls", icon: ListChecks, url: "/admin/logs" },
+  { title: "Usage & Costs", icon: BarChart3, url: "/admin/usage" },
+  { title: "Billing Ops", icon: WalletCards, url: "/admin/billing" },
+  { title: "System Health", icon: Activity, url: "/admin/health" },
+  { title: "Audit Logs", icon: Fingerprint, url: "/admin/audit" },
+  { title: "Settings", icon: Settings, url: "/admin/settings" },
+];
 export function SidebarAdmin(): JSX.Element {
   const location = useLocation();
-  const { data: liveData } = useQuery({
-    queryKey: ['admin-calls-live'],
-    queryFn: () => api<{ items: GlobalCall[] }>('/api/admin/calls/live'),
-    refetchInterval: 5000,
-  });
-  const liveCount = useMemo(() => liveData?.items?.length ?? 0, [liveData]);
-  const items = [
-    { title: "Overview", icon: LayoutDashboard, url: "/admin" },
-    { title: "Live Monitor", icon: Radio, url: "/admin/live", badge: liveCount > 0 ? liveCount : null },
-    { title: "Tenants", icon: Building2, url: "/admin/tenants" },
-    { title: "Global Calls", icon: ListChecks, url: "/admin/logs" },
-    { title: "Integrations", icon: Zap, url: "/admin/integrations" },
-    { title: "Usage & Costs", icon: BarChart3, url: "/admin/usage" },
-    { title: "Billing Ops", icon: WalletCards, url: "/admin/billing" },
-    { title: "System Health", icon: Activity, url: "/admin/health" },
-    { title: "Audit Logs", icon: Fingerprint, url: "/admin/audit" },
-    { title: "Settings", icon: Settings, url: "/admin/settings" },
-  ];
   return (
     <Sidebar collapsible="icon" className="border-r border-border/50">
       <SidebarHeader>
@@ -79,22 +68,9 @@ export function SidebarAdmin(): JSX.Element {
                     location.pathname === item.url && "bg-orange-50 text-orange-600 dark:bg-orange-950/20 dark:text-orange-400 font-semibold"
                   )}
                 >
-                  <Link to={item.url} className="flex items-center justify-between w-full">
-                    <div className="flex items-center gap-2">
-                      <item.icon className={cn("h-4 w-4", location.pathname === item.url && "text-orange-600")} />
-                      <span>{item.title}</span>
-                      {item.title === "Live Monitor" && liveCount > 0 && (
-                        <span className="relative flex h-2 w-2">
-                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
-                          <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
-                        </span>
-                      )}
-                    </div>
-                    {item.badge && (
-                      <span className="ml-auto bg-red-600 text-white text-[10px] px-1.5 py-0.5 rounded-full font-bold">
-                        {item.badge}
-                      </span>
-                    )}
+                  <Link to={item.url}>
+                    <item.icon className={cn("h-4 w-4 transition-transform group-hover:scale-110", location.pathname === item.url && "text-orange-600 dark:text-orange-400")} />
+                    <span>{item.title}</span>
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>

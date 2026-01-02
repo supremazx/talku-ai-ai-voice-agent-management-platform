@@ -5,12 +5,30 @@ import {
   InternalUserEntity,
   CallSessionEntity,
   AuditLogEntity,
-  IncidentEntity
+  IncidentEntity,
+  AgentEntity
 } from "./entities";
 import { ok, bad, notFound } from './core-utils';
 import { DashboardStats, BillingRecord, ProviderMetric } from "@shared/types";
 export function userRoutes(app: Hono<{ Bindings: Env }>) {
-  // ADMIN DASHBOARD STATS
+  // TENANT SCOPING MIDDLEWARE SIMULATION
+  const getTenantId = (c: any) => c.req.header('X-Tenant-Id') || 'tenant-1';
+  // --- CUSTOMER SCOPED ROUTES (/api/app/*) ---
+  app.get('/api/app/agents', async (c) => {
+    const tenantId = getTenantId(c);
+    await AgentEntity.ensureSeed(c.env);
+    const list = await AgentEntity.list(c.env);
+    const filtered = list.items.filter(a => a.tenantId === tenantId);
+    return ok(c, { items: filtered });
+  });
+  app.get('/api/app/calls', async (c) => {
+    const tenantId = getTenantId(c);
+    await CallSessionEntity.ensureSeed(c.env);
+    const list = await CallSessionEntity.list(c.env);
+    const filtered = list.items.filter(call => call.tenantId === tenantId);
+    return ok(c, { items: filtered });
+  });
+  // --- ADMIN GLOBAL ROUTES (/api/admin/*) ---
   app.get('/api/admin/stats', async (c) => {
     await Promise.all([
       TenantEntity.ensureSeed(c.env),
@@ -38,7 +56,6 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
     };
     return ok(c, stats);
   });
-  // TENANTS
   app.get('/api/admin/tenants', async (c) => {
     await TenantEntity.ensureSeed(c.env);
     return ok(c, await TenantEntity.list(c.env));
@@ -64,13 +81,10 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
     });
     return ok(c, await tenant.getState());
   });
-  // GLOBAL CALLS
   app.get('/api/calls', async (c) => {
     await CallSessionEntity.ensureSeed(c.env);
-    const list = await CallSessionEntity.list(c.env);
-    return ok(c, list);
+    return ok(c, await CallSessionEntity.list(c.env));
   });
-  // BILLING
   app.get('/api/billing', async (c) => {
     const calls = await CallSessionEntity.list(c.env);
     const records: BillingRecord[] = calls.items.map(call => ({
@@ -81,28 +95,16 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
       amount: -call.cost,
       tenantId: call.tenantId
     }));
-    // Add some mock top-ups
-    records.push({
-      id: 'topup-1',
-      ts: Date.now() - 86400000 * 5,
-      description: 'Credit Top-up (Visa **** 4242)',
-      type: 'top-up',
-      amount: 500.00,
-      tenantId: 'tenant-1'
-    });
     return ok(c, { items: records.sort((a, b) => b.ts - a.ts) });
   });
-  // AUDIT LOGS
   app.get('/api/admin/audit-logs', async (c) => {
     await AuditLogEntity.ensureSeed(c.env);
     return ok(c, await AuditLogEntity.list(c.env));
   });
-  // SYSTEM INCIDENTS
   app.get('/api/admin/incidents', async (c) => {
     await IncidentEntity.ensureSeed(c.env);
     return ok(c, await IncidentEntity.list(c.env));
   });
-  // USAGE STATS
   app.get('/api/admin/usage-stats', async (c) => {
     const metrics: ProviderMetric[] = [
       { provider: 'elevenlabs', volume: 45000, latency: 420, errorRate: 0.02 },
@@ -110,5 +112,13 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
       { provider: 'deepgram', volume: 85000, latency: 150, errorRate: 0.005 }
     ];
     return ok(c, { providers: metrics });
+  });
+  // Legacy fallback
+  app.get('/api/agents', async (c) => {
+    await AgentEntity.ensureSeed(c.env);
+    return ok(c, await AgentEntity.list(c.env));
+  });
+  app.get('/api/numbers', async (c) => {
+    return ok(c, { items: [] });
   });
 }

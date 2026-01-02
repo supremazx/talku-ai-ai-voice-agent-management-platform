@@ -1,32 +1,32 @@
 import { IndexedEntity } from "./core-utils";
-import type { 
-  Agent, 
-  PhoneNumber, 
-  GlobalCall, 
-  Tenant, 
-  InternalUser, 
-  AuditLog, 
-  Incident 
+import type {
+  Agent,
+  PhoneNumber,
+  GlobalCall,
+  Tenant,
+  InternalUser,
+  AuditLog,
+  Incident
 } from "@shared/types";
-import { 
-  MOCK_TENANTS, 
-  MOCK_INTERNAL_USERS, 
-  MOCK_CALLS, 
-  MOCK_AUDIT_LOGS, 
-  MOCK_INCIDENTS 
+import {
+  MOCK_TENANTS,
+  MOCK_INTERNAL_USERS,
+  MOCK_CALLS,
+  MOCK_AUDIT_LOGS,
+  MOCK_INCIDENTS
 } from "@shared/mock-data";
 export class TenantEntity extends IndexedEntity<Tenant> {
   static readonly entityName = "tenant";
   static readonly indexName = "tenants";
-  static readonly initialState: Tenant = { 
-    id: "", 
-    name: "", 
-    plan: "free", 
-    status: "active", 
-    credits: 0, 
+  static readonly initialState: Tenant = {
+    id: "",
+    name: "",
+    plan: "free",
+    status: "active",
+    credits: 0,
     limits: { concurrency: 1, maxDuration: 600 },
     metrics: { calls30d: 0, minutes30d: 0, spend30d: 0 },
-    createdAt: 0 
+    createdAt: 0
   };
   static seedData = MOCK_TENANTS;
 }
@@ -36,29 +36,57 @@ export class InternalUserEntity extends IndexedEntity<InternalUser> {
   static readonly initialState: InternalUser = { id: "", email: "", name: "", role: "read-only", lastLogin: 0 };
   static seedData = MOCK_INTERNAL_USERS;
 }
+export class AgentEntity extends IndexedEntity<Agent> {
+  static readonly entityName = "agent";
+  static readonly indexName = "agents";
+  static readonly initialState: Agent = {
+    id: "",
+    tenantId: "tenant-1",
+    name: "",
+    prompt: "",
+    voice: "bella",
+    language: "en-US",
+    provider: "openai",
+    temperature: 0.7
+  };
+  static seedData: Agent[] = [
+    { id: "agent-1", tenantId: "tenant-1", name: "Support Agent", prompt: "Help users with their orders.", voice: "bella", language: "en-US", provider: "openai", temperature: 0.7 },
+    { id: "agent-2", tenantId: "tenant-1", name: "Sales Agent", prompt: "Pitch our new product.", voice: "echo", language: "en-US", provider: "elevenlabs", temperature: 0.8 },
+    { id: "agent-3", tenantId: "tenant-2", name: "Receptionist", prompt: "Greet visitors.", voice: "nova", language: "en-US", provider: "openai", temperature: 0.5 },
+  ];
+}
 export class CallSessionEntity extends IndexedEntity<GlobalCall> {
   static readonly entityName = "call-session";
   static readonly indexName = "call-sessions";
-  static readonly initialState: GlobalCall = { 
-    id: "", 
+  static readonly initialState: GlobalCall = {
+    id: "",
     tenantId: "",
-    agentId: "", 
-    fromNumber: "", 
-    toNumber: "", 
-    startTime: 0, 
-    duration: 0, 
-    cost: 0, 
+    agentId: "",
+    fromNumber: "",
+    toNumber: "",
+    startTime: 0,
+    duration: 0,
+    cost: 0,
     margin: 0,
-    status: "completed", 
+    status: "completed",
     providerStatuses: { stt: 'ok', llm: 'ok', tts: 'ok' },
-    transcript: [] 
+    transcript: []
   };
   static seedData = MOCK_CALLS;
 }
 export class AuditLogEntity extends IndexedEntity<AuditLog> {
   static readonly entityName = "audit-log";
   static readonly indexName = "audit-logs";
-  static readonly initialState: AuditLog = { id: "", actorId: "", tenantId: null, action: "", reason: "", timestamp: 0 };
+  static readonly initialState: AuditLog = { 
+    id: "", 
+    actorId: "system", 
+    actorName: "System",
+    tenantId: null, 
+    action: "", 
+    reason: "", 
+    timestamp: 0,
+    severity: "low"
+  };
   static seedData = MOCK_AUDIT_LOGS;
 }
 export class IncidentEntity extends IndexedEntity<Incident> {

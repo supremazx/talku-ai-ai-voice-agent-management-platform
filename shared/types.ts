@@ -32,8 +32,13 @@ export interface Tenant {
   };
   createdAt: number;
 }
+export interface TenantContext {
+  activeTenantId: string;
+  activeTenantName: string;
+}
 export interface Agent {
   id: string;
+  tenantId: string;
   name: string;
   prompt: string;
   voice: string;

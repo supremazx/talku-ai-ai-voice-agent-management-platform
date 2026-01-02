@@ -6,83 +6,80 @@ import { createRoot } from 'react-dom/client'
 import {
   createBrowserRouter,
   RouterProvider,
+  Navigate
 } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { RouteErrorBoundary } from '@/components/RouteErrorBoundary';
 import '@/index.css'
-import { HomePage } from '@/pages/HomePage'
+// Global Admin Pages
+import { HomePage as AdminHomePage } from '@/pages/HomePage'
 import TenantsPage from '@/pages/admin/TenantsPage'
-import CallLogsPage from '@/pages/CallLogsPage'
-import BillingPage from '@/pages/BillingPage'
-import SettingsPage from '@/pages/SettingsPage'
-import AuditLogsPage from '@/pages/admin/AuditLogsPage'
-import HealthPage from '@/pages/admin/HealthPage'
-import UsagePage from '@/pages/admin/UsagePage'
-const queryClient = new QueryClient();
+import AdminCallLogsPage from '@/pages/CallLogsPage'
+import AdminUsagePage from '@/pages/admin/UsagePage'
+import AdminHealthPage from '@/pages/admin/HealthPage'
+import AdminAuditLogsPage from '@/pages/admin/AuditLogsPage'
+import AdminSettingsPage from '@/pages/SettingsPage'
+import AdminBillingPage from '@/pages/BillingPage'
+// Customer App Pages
+import { DashboardPage as AppDashboardPage } from '@/pages/app/DashboardPage'
+import AppAgentsPage from '@/pages/AgentsPage'
+import AppNumbersPage from '@/pages/NumbersPage'
+import AppCallLogsPage from '@/pages/CallLogsPage'
+import AppBillingPage from '@/pages/BillingPage'
+import AppSettingsPage from '@/pages/SettingsPage'
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      retry: 1,
+      refetchOnWindowFocus: false,
+    },
+  },
+});
 const router = createBrowserRouter([
   {
     path: "/",
-    element: <HomePage />,
+    element: <Navigate to="/app" replace />,
     errorElement: <RouteErrorBoundary />,
   },
+  // Customer Dashboard Routes
   {
-    path: "/tenants",
-    element: <TenantsPage />,
+    path: "/app",
     errorElement: <RouteErrorBoundary />,
+    children: [
+      { index: true, element: <AppDashboardPage /> },
+      { path: "agents", element: <AppAgentsPage /> },
+      { path: "numbers", element: <AppNumbersPage /> },
+      { path: "logs", element: <AppCallLogsPage /> },
+      { path: "billing", element: <AppBillingPage /> },
+      { path: "settings", element: <AppSettingsPage /> },
+    ]
   },
+  // Admin Control Panel Routes
   {
-    path: "/logs",
-    element: <CallLogsPage />,
+    path: "/admin",
     errorElement: <RouteErrorBoundary />,
-  },
-  {
-    path: "/usage",
-    element: <UsagePage />,
-    errorElement: <RouteErrorBoundary />,
-  },
-  {
-    path: "/billing",
-    element: <BillingPage />,
-    errorElement: <RouteErrorBoundary />,
-  },
-  {
-    path: "/providers",
-    element: <HealthPage />, // Providers view now merged into Health/Routing
-    errorElement: <RouteErrorBoundary />,
-  },
-  {
-    path: "/health",
-    element: <HealthPage />,
-    errorElement: <RouteErrorBoundary />,
-  },
-  {
-    path: "/abuse",
-    element: <HealthPage />,
-    errorElement: <RouteErrorBoundary />,
-  },
-  {
-    path: "/webhooks",
-    element: <SettingsPage />,
-    errorElement: <RouteErrorBoundary />,
-  },
-  {
-    path: "/audit",
-    element: <AuditLogsPage />,
-    errorElement: <RouteErrorBoundary />,
-  },
-  {
-    path: "/settings",
-    element: <SettingsPage />,
-    errorElement: <RouteErrorBoundary />,
-  },
+    children: [
+      { index: true, element: <AdminHomePage /> },
+      { path: "tenants", element: <TenantsPage /> },
+      { path: "logs", element: <AdminCallLogsPage /> },
+      { path: "usage", element: <AdminUsagePage /> },
+      { path: "health", element: <AdminHealthPage /> },
+      { path: "audit", element: <AdminAuditLogsPage /> },
+      { path: "settings", element: <AdminSettingsPage /> },
+      { path: "billing", element: <AdminBillingPage /> },
+    ]
+  }
 ]);
-createRoot(document.getElementById('root')!).render(
+const container = document.getElementById('root');
+if (!container) throw new Error('Root container not found');
+const root = createRoot(container);
+root.render(
   <StrictMode>
     <QueryClientProvider client={queryClient}>
       <ErrorBoundary>
         <RouterProvider router={router} />
       </ErrorBoundary>
     </QueryClientProvider>
-  </StrictMode>,
-)
+  </StrictMode>
+);
