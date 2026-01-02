@@ -1,4 +1,4 @@
-import { InternalUser, Tenant, GlobalCall, AuditLog, Incident } from './types';
+import { InternalUser, Tenant, GlobalCall, AuditLog, Incident, BillingRecord } from './types';
 export const MOCK_INTERNAL_USERS: InternalUser[] = [
   { id: 'admin-1', email: 'alex@talku.ai', name: 'Alex Rivera', role: 'owner', lastLogin: Date.now() - 10000 },
   { id: 'admin-2', email: 'sam@talku.ai', name: 'Sam Smith', role: 'admin', lastLogin: Date.now() - 50000 },
@@ -50,16 +50,29 @@ export const MOCK_CALLS: GlobalCall[] = Array.from({ length: 100 }).map((_, i) =
 export const MOCK_AUDIT_LOGS: AuditLog[] = Array.from({ length: 40 }).map((_, i) => ({
   id: `audit-${i}`,
   actorId: MOCK_INTERNAL_USERS[i % 5].id,
+  actorName: MOCK_INTERNAL_USERS[i % 5].name,
   tenantId: MOCK_TENANTS[i % 20].id,
-  action: ['CREDIT_ADJUST', 'TENANT_SUSPENDED', 'API_KEY_RESET', 'PLAN_UPGRADE'][i % 4],
-  reason: 'Routine administrative update requested via support ticket #4412',
+  action: ['CREDIT_ADJUST', 'TENANT_SUSPENDED', 'API_KEY_RESET', 'PLAN_UPGRADE', 'AGENT_DELETED', 'SYSTEM_UPDATE'][i % 6],
+  reason: 'Automated policy enforcement or manual admin request via ticket #' + (4412 + i),
   timestamp: Date.now() - (i * 3600000 * 4),
-  payload: { previousValue: 100, newValue: 500 }
+  severity: i % 10 === 0 ? 'high' : 'medium',
+  payload: { 
+    before: { status: 'active', credits: 100 }, 
+    after: { status: i % 6 === 1 ? 'suspended' : 'active', credits: 500 } 
+  }
 }));
 export const MOCK_INCIDENTS: Incident[] = [
-  { id: 'inc-1', type: 'provider_latency', severity: 'high', tenantId: null, status: 'investigating', description: 'ElevenLabs latency spike in US-East', createdAt: Date.now() - 3600000 },
-  { id: 'inc-2', type: 'abuse_spike', severity: 'medium', tenantId: 'tenant-5', status: 'open', description: 'Concurrent call limit reached for Tenant-5', createdAt: Date.now() - 1800000 }
+  { id: 'inc-1', type: 'provider_latency', severity: 'high', tenantId: null, status: 'investigating', description: 'ElevenLabs latency spike in US-East affecting 40% of calls.', createdAt: Date.now() - 3600000 },
+  { id: 'inc-2', type: 'abuse_spike', severity: 'medium', tenantId: 'tenant-5', status: 'open', description: 'Concurrent call limit reached for Tenant-5. Possible loop detected.', createdAt: Date.now() - 1800000 }
 ];
+export const MOCK_BILLING_RECORDS: BillingRecord[] = Array.from({ length: 30 }).map((_, i) => ({
+  id: `bill-rec-${i}`,
+  ts: Date.now() - (i * 86400000 * 0.5),
+  description: i % 5 === 0 ? 'Credit Top-up' : 'Call Usage Batch',
+  type: i % 5 === 0 ? 'top-up' : 'usage',
+  amount: i % 5 === 0 ? 100.00 : -Math.random() * 20,
+  tenantId: MOCK_TENANTS[i % 10].id
+}));
 export const MOCK_USERS = [{ id: 'u1', name: 'Admin User' }];
 export const MOCK_CHATS = [];
 export const MOCK_CHAT_MESSAGES = [];

@@ -1,14 +1,14 @@
 import { Hono } from "hono";
 import type { Env } from './core-utils';
-import { 
-  TenantEntity, 
-  InternalUserEntity, 
-  CallSessionEntity, 
-  AuditLogEntity, 
-  IncidentEntity 
+import {
+  TenantEntity,
+  InternalUserEntity,
+  CallSessionEntity,
+  AuditLogEntity,
+  IncidentEntity
 } from "./entities";
 import { ok, bad, notFound } from './core-utils';
-import { DashboardStats } from "@shared/types";
+import { DashboardStats, BillingRecord, ProviderMetric } from "@shared/types";
 export function userRoutes(app: Hono<{ Bindings: Env }>) {
   // ADMIN DASHBOARD STATS
   app.get('/api/admin/stats', async (c) => {
@@ -45,20 +45,21 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
   });
   app.patch('/api/admin/tenants/:id', async (c) => {
     const id = c.req.param('id');
-    const { reason, actorId, ...updates } = await c.req.json();
+    const { reason, actorId, actorName, ...updates } = await c.req.json();
     if (!reason) return bad(c, 'Audit reason required for this action');
     const tenant = new TenantEntity(c.env, id);
     if (!await tenant.exists()) return notFound(c);
     const oldState = await tenant.getState();
     await tenant.patch(updates);
-    // Create Audit Log
     await AuditLogEntity.create(c.env, {
       id: crypto.randomUUID(),
       actorId: actorId || 'system',
+      actorName: actorName || 'System Admin',
       tenantId: id,
       action: 'TENANT_UPDATE',
       reason,
       timestamp: Date.now(),
+      severity: 'medium',
       payload: { before: oldState, after: updates }
     });
     return ok(c, await tenant.getState());
@@ -67,8 +68,29 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
   app.get('/api/calls', async (c) => {
     await CallSessionEntity.ensureSeed(c.env);
     const list = await CallSessionEntity.list(c.env);
-    // In a real app we'd join with tenant names, but for now just returning items
     return ok(c, list);
+  });
+  // BILLING
+  app.get('/api/billing', async (c) => {
+    const calls = await CallSessionEntity.list(c.env);
+    const records: BillingRecord[] = calls.items.map(call => ({
+      id: `bill-${call.id}`,
+      ts: call.startTime,
+      description: `Call Usage: ${call.fromNumber} -> ${call.toNumber}`,
+      type: 'usage',
+      amount: -call.cost,
+      tenantId: call.tenantId
+    }));
+    // Add some mock top-ups
+    records.push({
+      id: 'topup-1',
+      ts: Date.now() - 86400000 * 5,
+      description: 'Credit Top-up (Visa **** 4242)',
+      type: 'top-up',
+      amount: 500.00,
+      tenantId: 'tenant-1'
+    });
+    return ok(c, { items: records.sort((a, b) => b.ts - a.ts) });
   });
   // AUDIT LOGS
   app.get('/api/admin/audit-logs', async (c) => {
@@ -79,5 +101,14 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
   app.get('/api/admin/incidents', async (c) => {
     await IncidentEntity.ensureSeed(c.env);
     return ok(c, await IncidentEntity.list(c.env));
+  });
+  // USAGE STATS
+  app.get('/api/admin/usage-stats', async (c) => {
+    const metrics: ProviderMetric[] = [
+      { provider: 'elevenlabs', volume: 45000, latency: 420, errorRate: 0.02 },
+      { provider: 'openai', volume: 120000, latency: 1100, errorRate: 0.01 },
+      { provider: 'deepgram', volume: 85000, latency: 150, errorRate: 0.005 }
+    ];
+    return ok(c, { providers: metrics });
   });
 }

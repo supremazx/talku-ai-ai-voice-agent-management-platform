@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { format } from 'date-fns';
-import { History, Eye, Download, Search, Info, TrendingUp, DollarSign } from 'lucide-react';
+import { History, Eye, Download, Search, Info, TrendingUp, DollarSign, Activity } from 'lucide-react';
 import { api } from '@/lib/api-client';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';

@@ -7,7 +7,6 @@ import { AppLayout } from '@/components/layout/AppLayout';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { cn } from "@/lib/utils";
 const COLORS = ['#3b82f6', '#f97316', '#10b981', '#6366f1'];
 export default function UsagePage() {
   const { data: usageStats } = useQuery({

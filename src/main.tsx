@@ -16,12 +16,9 @@ import TenantsPage from '@/pages/admin/TenantsPage'
 import CallLogsPage from '@/pages/CallLogsPage'
 import BillingPage from '@/pages/BillingPage'
 import SettingsPage from '@/pages/SettingsPage'
-// Mock components for non-implemented internal routes to keep router clean
-const Placeholder = ({ title }: { title: string }) => (
-  <div className="flex items-center justify-center h-screen font-mono text-muted-foreground uppercase tracking-widest">
-    {title} - Under Construction
-  </div>
-);
+import AuditLogsPage from '@/pages/admin/AuditLogsPage'
+import HealthPage from '@/pages/admin/HealthPage'
+import UsagePage from '@/pages/admin/UsagePage'
 const queryClient = new QueryClient();
 const router = createBrowserRouter([
   {
@@ -41,7 +38,7 @@ const router = createBrowserRouter([
   },
   {
     path: "/usage",
-    element: <Placeholder title="Usage & Costs" />,
+    element: <UsagePage />,
     errorElement: <RouteErrorBoundary />,
   },
   {
@@ -51,27 +48,27 @@ const router = createBrowserRouter([
   },
   {
     path: "/providers",
-    element: <Placeholder title="Providers & Routing" />,
+    element: <HealthPage />, // Providers view now merged into Health/Routing
     errorElement: <RouteErrorBoundary />,
   },
   {
     path: "/health",
-    element: <Placeholder title="System Health" />,
+    element: <HealthPage />,
     errorElement: <RouteErrorBoundary />,
   },
   {
     path: "/abuse",
-    element: <Placeholder title="Abuse & Risk" />,
+    element: <HealthPage />,
     errorElement: <RouteErrorBoundary />,
   },
   {
     path: "/webhooks",
-    element: <Placeholder title="Webhooks & Events" />,
+    element: <SettingsPage />,
     errorElement: <RouteErrorBoundary />,
   },
   {
     path: "/audit",
-    element: <Placeholder title="Audit Logs" />,
+    element: <AuditLogsPage />,
     errorElement: <RouteErrorBoundary />,
   },
   {

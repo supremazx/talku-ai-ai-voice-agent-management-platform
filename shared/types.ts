@@ -67,16 +67,29 @@ export interface GlobalCall {
   };
   transcript: { role: 'agent' | 'user'; text: string; ts: number }[];
 }
-// Alias for backwards compatibility where needed, but GlobalCall is preferred
 export type CallSession = GlobalCall;
+export interface BillingRecord {
+  id: string;
+  ts: number;
+  description: string;
+  type: 'top-up' | 'usage' | 'subscription' | 'refund';
+  amount: number;
+  tenantId: string;
+}
 export interface AuditLog {
   id: string;
-  actorId: string; // InternalUser ID
+  actorId: string;
+  actorName: string;
   tenantId: string | null;
   action: string;
   reason: string;
   timestamp: number;
-  payload?: Record<string, any>;
+  severity: 'low' | 'medium' | 'high' | 'critical';
+  payload?: {
+    before?: any;
+    after?: any;
+    [key: string]: any;
+  };
 }
 export interface Incident {
   id: string;
@@ -95,7 +108,12 @@ export interface DashboardStats {
   totalCalls24h: number;
   revenue24h: number;
 }
-// Keeping legacy types for compatibility with template internals if needed
+export interface ProviderMetric {
+  provider: VoiceProvider;
+  volume: number;
+  latency: number;
+  errorRate: number;
+}
 export interface User { id: string; name: string; }
 export interface Chat { id: string; title: string; }
 export interface ChatMessage { id: string; chatId: string; userId: string; text: string; ts: number; }
