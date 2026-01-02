@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useMemo } from "react";
 import {
   LayoutDashboard,
   Bot,
@@ -44,15 +44,22 @@ const items = [
 ];
 export function SidebarCustomer(): JSX.Element {
   const location = useLocation();
+  // ZUSTAND ZERO-TOLERANCE COMPLIANCE: One primitive per hook call
   const activeTenantId = useTenantStore((s) => s.activeTenantId);
-  const activeTenant = useTenantStore((s) => s.activeTenant);
   const setTenant = useTenantStore((s) => s.setTenant);
   const { data: tenantsData } = useQuery({
     queryKey: ['available-tenants'],
-    queryFn: () => api<{ items: Tenant[] }>('/api/admin/tenants')
+    queryFn: () => api<{ items: Tenant[] }>('/api/admin/tenants'),
+    staleTime: 1000 * 60 * 5, // 5 minutes
   });
-  const tenants = tenantsData?.items ?? [];
-  const currentTenant = activeTenant ?? tenants.find(t => t.id === activeTenantId) ?? { name: "Loading...", credits: 0 };
+  const tenants = useMemo(() => tenantsData?.items ?? [], [tenantsData]);
+  const currentTenant = useMemo(() => {
+    return tenants.find(t => t.id === activeTenantId) ?? { 
+      name: "Select Workspace", 
+      credits: 0, 
+      plan: "free" as const 
+    };
+  }, [tenants, activeTenantId]);
   return (
     <Sidebar collapsible="icon" className="border-r border-border/50">
       <SidebarHeader>
@@ -71,7 +78,7 @@ export function SidebarCustomer(): JSX.Element {
           <div className="mt-4 px-2 group-data-[collapsible=icon]:hidden">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <button className="flex items-center justify-between w-full px-3 py-2 text-sm font-medium bg-muted/50 rounded-md border border-border/50 hover:bg-muted transition-colors">
+                <button className="flex items-center justify-between w-full px-3 py-2 text-sm font-medium bg-muted/50 rounded-md border border-border/50 hover:bg-muted transition-colors focus:outline-none focus:ring-2 focus:ring-orange-500/20">
                   <div className="flex items-center gap-2 truncate">
                     <Building2 className="h-4 w-4 text-orange-600" />
                     <span className="truncate">{currentTenant.name}</span>
@@ -82,18 +89,29 @@ export function SidebarCustomer(): JSX.Element {
               <DropdownMenuContent className="w-56" align="start">
                 <DropdownMenuLabel>Switch Workspace</DropdownMenuLabel>
                 <DropdownMenuSeparator />
-                {tenants.map((t) => (
-                  <DropdownMenuItem 
-                    key={t.id} 
-                    onClick={() => setTenant(t)}
-                    className={cn(activeTenantId === t.id && "bg-accent font-bold")}
-                  >
-                    <div className="flex flex-col">
-                      <span>{t.name}</span>
-                      <span className="text-[10px] text-muted-foreground">{t.plan.toUpperCase()} Plan</span>
-                    </div>
-                  </DropdownMenuItem>
-                ))}
+                {tenants.length === 0 ? (
+                  <div className="px-2 py-4 text-center text-xs text-muted-foreground italic">
+                    Loading tenants...
+                  </div>
+                ) : (
+                  tenants.map((t) => (
+                    <DropdownMenuItem
+                      key={t.id}
+                      onClick={() => setTenant(t)}
+                      className={cn(
+                        "flex items-center justify-between cursor-pointer",
+                        activeTenantId === t.id && "bg-accent font-bold"
+                      )}
+                    >
+                      <div className="flex flex-col">
+                        <span>{t.name}</span>
+                        <span className="text-[10px] text-muted-foreground uppercase tracking-tighter">
+                          {t.plan} Plan
+                        </span>
+                      </div>
+                    </DropdownMenuItem>
+                  ))
+                )}
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
@@ -130,11 +148,13 @@ export function SidebarCustomer(): JSX.Element {
               <p className="text-[10px] font-bold text-muted-foreground uppercase">Credits</p>
               <Link to="/app/billing" className="text-[10px] text-orange-600 font-bold hover:underline">Refill</Link>
             </div>
-            <p className="text-sm font-bold">${currentTenant.credits?.toFixed(2) ?? '0.00'}</p>
+            <p className="text-sm font-bold">
+              ${typeof currentTenant.credits === 'number' ? currentTenant.credits.toFixed(2) : '0.00'}
+            </p>
             <div className="w-full h-1 bg-muted rounded-full mt-2 overflow-hidden">
-              <div 
-                className="h-full bg-orange-500 transition-all duration-500" 
-                style={{ width: `${Math.min(100, (currentTenant.credits / 500) * 100)}%` }} 
+              <div
+                className="h-full bg-orange-500 transition-all duration-500"
+                style={{ width: `${Math.min(100, ((currentTenant.credits || 0) / 500) * 100)}%` }}
               />
             </div>
           </div>
