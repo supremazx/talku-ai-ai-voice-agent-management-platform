@@ -1,27 +1,69 @@
 import { IndexedEntity } from "./core-utils";
-import type { Agent, PhoneNumber, CallSession, BillingRecord } from "@shared/types";
-import { MOCK_AGENTS, MOCK_NUMBERS, MOCK_CALLS, MOCK_BILLING } from "@shared/mock-data";
-export class AgentEntity extends IndexedEntity<Agent> {
-  static readonly entityName = "agent";
-  static readonly indexName = "agents";
-  static readonly initialState: Agent = { id: "", name: "", prompt: "", voice: "bella", language: "en-US", provider: "elevenlabs", temperature: 0.7 };
-  static seedData = MOCK_AGENTS;
+import type { 
+  Agent, 
+  PhoneNumber, 
+  GlobalCall, 
+  Tenant, 
+  InternalUser, 
+  AuditLog, 
+  Incident 
+} from "@shared/types";
+import { 
+  MOCK_TENANTS, 
+  MOCK_INTERNAL_USERS, 
+  MOCK_CALLS, 
+  MOCK_AUDIT_LOGS, 
+  MOCK_INCIDENTS 
+} from "@shared/mock-data";
+export class TenantEntity extends IndexedEntity<Tenant> {
+  static readonly entityName = "tenant";
+  static readonly indexName = "tenants";
+  static readonly initialState: Tenant = { 
+    id: "", 
+    name: "", 
+    plan: "free", 
+    status: "active", 
+    credits: 0, 
+    limits: { concurrency: 1, maxDuration: 600 },
+    metrics: { calls30d: 0, minutes30d: 0, spend30d: 0 },
+    createdAt: 0 
+  };
+  static seedData = MOCK_TENANTS;
 }
-export class NumberEntity extends IndexedEntity<PhoneNumber> {
-  static readonly entityName = "phone-number";
-  static readonly indexName = "phone-numbers";
-  static readonly initialState: PhoneNumber = { id: "", e164: "", country: "US", agentId: null, status: "pending" };
-  static seedData = MOCK_NUMBERS;
+export class InternalUserEntity extends IndexedEntity<InternalUser> {
+  static readonly entityName = "internal-user";
+  static readonly indexName = "internal-users";
+  static readonly initialState: InternalUser = { id: "", email: "", name: "", role: "read-only", lastLogin: 0 };
+  static seedData = MOCK_INTERNAL_USERS;
 }
-export class CallSessionEntity extends IndexedEntity<CallSession> {
+export class CallSessionEntity extends IndexedEntity<GlobalCall> {
   static readonly entityName = "call-session";
   static readonly indexName = "call-sessions";
-  static readonly initialState: CallSession = { id: "", agentId: "", fromNumber: "", toNumber: "", startTime: 0, duration: 0, cost: 0, status: "completed", transcript: [] };
+  static readonly initialState: GlobalCall = { 
+    id: "", 
+    tenantId: "",
+    agentId: "", 
+    fromNumber: "", 
+    toNumber: "", 
+    startTime: 0, 
+    duration: 0, 
+    cost: 0, 
+    margin: 0,
+    status: "completed", 
+    providerStatuses: { stt: 'ok', llm: 'ok', tts: 'ok' },
+    transcript: [] 
+  };
   static seedData = MOCK_CALLS;
 }
-export class BillingEntity extends IndexedEntity<BillingRecord> {
-  static readonly entityName = "billing";
-  static readonly indexName = "billing-records";
-  static readonly initialState: BillingRecord = { id: "", amount: 0, type: "usage", description: "", ts: 0 };
-  static seedData = MOCK_BILLING;
+export class AuditLogEntity extends IndexedEntity<AuditLog> {
+  static readonly entityName = "audit-log";
+  static readonly indexName = "audit-logs";
+  static readonly initialState: AuditLog = { id: "", actorId: "", tenantId: null, action: "", reason: "", timestamp: 0 };
+  static seedData = MOCK_AUDIT_LOGS;
+}
+export class IncidentEntity extends IndexedEntity<Incident> {
+  static readonly entityName = "incident";
+  static readonly indexName = "incidents";
+  static readonly initialState: Incident = { id: "", type: "api_error", severity: "low", tenantId: null, status: "open", description: "", createdAt: 0 };
+  static seedData = MOCK_INCIDENTS;
 }

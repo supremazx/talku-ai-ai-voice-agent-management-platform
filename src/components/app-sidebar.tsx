@@ -1,5 +1,19 @@
 import React from "react";
-import { LayoutDashboard, Bot, Phone, ListChecks, CreditCard, Settings, Mic } from "lucide-react";
+import { 
+  LayoutDashboard, 
+  Building2, 
+  ListChecks, 
+  BarChart3, 
+  WalletCards, 
+  Network, 
+  Activity, 
+  ShieldAlert, 
+  Webhook, 
+  Fingerprint, 
+  Settings,
+  Mic,
+  BadgeAlert
+} from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 import {
   Sidebar,
@@ -12,12 +26,18 @@ import {
   SidebarMenuButton,
 } from "@/components/ui/sidebar";
 import { cn } from "@/lib/utils";
+import { Badge } from "@/components/ui/badge";
 const items = [
   { title: "Overview", icon: LayoutDashboard, url: "/" },
-  { title: "AI Agents", icon: Bot, url: "/agents" },
-  { title: "Numbers", icon: Phone, url: "/numbers" },
-  { title: "Call Logs", icon: ListChecks, url: "/logs" },
-  { title: "Billing", icon: CreditCard, url: "/billing" },
+  { title: "Tenants", icon: Building2, url: "/tenants" },
+  { title: "Global Calls", icon: ListChecks, url: "/logs" },
+  { title: "Usage & Costs", icon: BarChart3, url: "/usage" },
+  { title: "Billing Ops", icon: WalletCards, url: "/billing" },
+  { title: "Providers", icon: Network, url: "/providers" },
+  { title: "System Health", icon: Activity, url: "/health" },
+  { title: "Abuse & Risk", icon: ShieldAlert, url: "/abuse" },
+  { title: "Webhooks", icon: Webhook, url: "/webhooks" },
+  { title: "Audit Logs", icon: Fingerprint, url: "/audit" },
   { title: "Settings", icon: Settings, url: "/settings" },
 ];
 export function AppSidebar(): JSX.Element {
@@ -25,13 +45,18 @@ export function AppSidebar(): JSX.Element {
   return (
     <Sidebar collapsible="icon">
       <SidebarHeader>
-        <div className="flex items-center gap-3 px-2 py-4">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-            <Mic className="h-5 w-5" />
+        <div className="flex flex-col gap-1 px-2 py-4">
+          <div className="flex items-center gap-3">
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-orange-600 text-white">
+              <Mic className="h-5 w-5" />
+            </div>
+            <div className="flex flex-col group-data-[collapsible=icon]:hidden">
+              <span className="text-lg font-bold tracking-tight text-foreground leading-none">
+                Talku<span className="text-orange-600">Admin</span>
+              </span>
+              <span className="text-[10px] text-muted-foreground uppercase tracking-widest font-bold">Control Panel</span>
+            </div>
           </div>
-          <span className="text-xl font-bold tracking-tight text-foreground group-data-[collapsible=icon]:hidden">
-            Talku<span className="text-orange-500">.ai</span>
-          </span>
         </div>
       </SidebarHeader>
       <SidebarContent>
@@ -60,9 +85,12 @@ export function AppSidebar(): JSX.Element {
       </SidebarContent>
       <SidebarFooter>
         <div className="p-4 group-data-[collapsible=icon]:hidden">
-          <div className="rounded-lg bg-orange-500/10 p-4 border border-orange-500/20">
-            <p className="text-xs font-medium text-orange-600 dark:text-orange-400">Pro Plan</p>
-            <p className="text-[10px] text-muted-foreground mt-1">Upgrade for more concurrency</p>
+          <div className="rounded-lg bg-red-500/10 p-4 border border-red-500/20">
+            <div className="flex items-center gap-2">
+              <BadgeAlert className="h-3 w-3 text-red-600" />
+              <p className="text-xs font-bold text-red-600 uppercase">System Alert</p>
+            </div>
+            <p className="text-[10px] text-muted-foreground mt-1">2 Active Provider Incidents</p>
           </div>
         </div>
       </SidebarFooter>

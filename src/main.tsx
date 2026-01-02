@@ -12,11 +12,16 @@ import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { RouteErrorBoundary } from '@/components/RouteErrorBoundary';
 import '@/index.css'
 import { HomePage } from '@/pages/HomePage'
-import AgentsPage from '@/pages/AgentsPage'
-import NumbersPage from '@/pages/NumbersPage'
+import TenantsPage from '@/pages/admin/TenantsPage'
 import CallLogsPage from '@/pages/CallLogsPage'
 import BillingPage from '@/pages/BillingPage'
 import SettingsPage from '@/pages/SettingsPage'
+// Mock components for non-implemented internal routes to keep router clean
+const Placeholder = ({ title }: { title: string }) => (
+  <div className="flex items-center justify-center h-screen font-mono text-muted-foreground uppercase tracking-widest">
+    {title} - Under Construction
+  </div>
+);
 const queryClient = new QueryClient();
 const router = createBrowserRouter([
   {
@@ -25,13 +30,8 @@ const router = createBrowserRouter([
     errorElement: <RouteErrorBoundary />,
   },
   {
-    path: "/agents",
-    element: <AgentsPage />,
-    errorElement: <RouteErrorBoundary />,
-  },
-  {
-    path: "/numbers",
-    element: <NumbersPage />,
+    path: "/tenants",
+    element: <TenantsPage />,
     errorElement: <RouteErrorBoundary />,
   },
   {
@@ -40,8 +40,38 @@ const router = createBrowserRouter([
     errorElement: <RouteErrorBoundary />,
   },
   {
+    path: "/usage",
+    element: <Placeholder title="Usage & Costs" />,
+    errorElement: <RouteErrorBoundary />,
+  },
+  {
     path: "/billing",
     element: <BillingPage />,
+    errorElement: <RouteErrorBoundary />,
+  },
+  {
+    path: "/providers",
+    element: <Placeholder title="Providers & Routing" />,
+    errorElement: <RouteErrorBoundary />,
+  },
+  {
+    path: "/health",
+    element: <Placeholder title="System Health" />,
+    errorElement: <RouteErrorBoundary />,
+  },
+  {
+    path: "/abuse",
+    element: <Placeholder title="Abuse & Risk" />,
+    errorElement: <RouteErrorBoundary />,
+  },
+  {
+    path: "/webhooks",
+    element: <Placeholder title="Webhooks & Events" />,
+    errorElement: <RouteErrorBoundary />,
+  },
+  {
+    path: "/audit",
+    element: <Placeholder title="Audit Logs" />,
     errorElement: <RouteErrorBoundary />,
   },
   {

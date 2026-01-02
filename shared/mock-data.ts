@@ -1,32 +1,64 @@
-import { Agent, PhoneNumber, CallSession, BillingRecord } from './types';
-export const MOCK_AGENTS: Agent[] = [
-  { id: 'agent-1', name: 'Customer Support', prompt: 'You are a helpful support agent.', voice: 'bella', language: 'en-US', provider: 'elevenlabs', temperature: 0.7 },
-  { id: 'agent-2', name: 'Sales Closer', prompt: 'You are an aggressive sales closer.', voice: 'echo', language: 'en-GB', provider: 'openai', temperature: 0.9 },
-  { id: 'agent-3', name: 'Appointment Setter', prompt: 'Help users book a slot on the calendar.', voice: 'nova', language: 'es-ES', provider: 'openai', temperature: 0.5 }
+import { InternalUser, Tenant, GlobalCall, AuditLog, Incident } from './types';
+export const MOCK_INTERNAL_USERS: InternalUser[] = [
+  { id: 'admin-1', email: 'alex@talku.ai', name: 'Alex Rivera', role: 'owner', lastLogin: Date.now() - 10000 },
+  { id: 'admin-2', email: 'sam@talku.ai', name: 'Sam Smith', role: 'admin', lastLogin: Date.now() - 50000 },
+  { id: 'admin-3', email: 'support@talku.ai', name: 'Support Bot', role: 'support', lastLogin: Date.now() - 5000 },
+  { id: 'admin-4', email: 'finance@talku.ai', name: 'Fin Manager', role: 'finance', lastLogin: Date.now() - 90000 },
+  { id: 'admin-5', email: 'viewer@talku.ai', name: 'Auditor One', role: 'read-only', lastLogin: Date.now() - 120000 },
 ];
-export const MOCK_NUMBERS: PhoneNumber[] = [
-  { id: 'num-1', e164: '+1 (555) 001-2233', country: 'US', agentId: 'agent-1', status: 'active' },
-  { id: 'num-2', e164: '+44 20 7946 0958', country: 'UK', agentId: 'agent-2', status: 'active' },
-  { id: 'num-3', e164: '+1 (555) 004-5566', country: 'US', agentId: null, status: 'pending' }
-];
-export const MOCK_CALLS: CallSession[] = Array.from({ length: 25 }).map((_, i) => ({
-  id: `call-${i}`,
-  agentId: MOCK_AGENTS[i % 3].id,
-  fromNumber: `+1555000${1000 + i}`,
-  toNumber: MOCK_NUMBERS[0].e164,
-  startTime: Date.now() - (i * 3600000),
-  duration: Math.floor(Math.random() * 300) + 30,
-  cost: Number((Math.random() * 2).toFixed(2)),
-  status: i % 10 === 0 ? 'failed' : 'completed',
-  transcript: [
-    { role: 'agent', text: 'Hello, how can I help you today?', ts: Date.now() - 10000 },
-    { role: 'user', text: 'I would like to check my order status.', ts: Date.now() - 5000 }
-  ]
+export const MOCK_TENANTS: Tenant[] = Array.from({ length: 25 }).map((_, i) => ({
+  id: `tenant-${i + 1}`,
+  name: ['Acme Corp', 'Globex', 'Soylent Corp', 'Initech', 'Umbrella', 'Hooli', 'Pied Piper', 'Stark Ind'][i % 8] + ` ${i + 1}`,
+  plan: i === 0 ? 'enterprise' : i < 5 ? 'pro' : 'free',
+  status: i === 10 ? 'suspended' : 'active',
+  credits: Math.floor(Math.random() * 5000),
+  limits: { concurrency: 10 * (i + 1), maxDuration: 3600 },
+  metrics: {
+    calls30d: Math.floor(Math.random() * 10000),
+    minutes30d: Math.floor(Math.random() * 50000),
+    spend30d: Math.floor(Math.random() * 2000),
+  },
+  createdAt: Date.now() - (i * 86400000 * 2),
 }));
-export const MOCK_BILLING: BillingRecord[] = [
-  { id: 'bill-1', amount: 50.00, type: 'top-up', description: 'Credit Top-up', ts: Date.now() - 86400000 * 5 },
-  { id: 'bill-2', amount: -2.45, type: 'usage', description: 'Call usage for Agent-1', ts: Date.now() - 86400000 * 2 },
-  { id: 'bill-3', amount: -1.20, type: 'usage', description: 'Call usage for Agent-2', ts: Date.now() - 86400000 * 1 }
+export const MOCK_CALLS: GlobalCall[] = Array.from({ length: 100 }).map((_, i) => {
+  const tenant = MOCK_TENANTS[i % MOCK_TENANTS.length];
+  const duration = Math.floor(Math.random() * 600) + 30;
+  const cost = Number((duration * 0.015).toFixed(4));
+  const margin = Number((cost * 0.4).toFixed(4));
+  return {
+    id: `call-${i}`,
+    tenantId: tenant.id,
+    agentId: `agent-${i % 3}`,
+    fromNumber: `+1555000${1000 + i}`,
+    toNumber: `+1888123${2000 + i}`,
+    startTime: Date.now() - (i * 1800000),
+    duration,
+    cost,
+    margin,
+    status: i % 15 === 0 ? 'failed' : 'completed',
+    providerStatuses: {
+      stt: 'ok',
+      llm: i % 20 === 0 ? 'error' : 'ok',
+      tts: 'ok',
+    },
+    transcript: [
+      { role: 'agent', text: 'Hello, Talku support. How can I assist?', ts: 1000 },
+      { role: 'user', text: 'I need to check a parcel status.', ts: 5000 }
+    ]
+  };
+});
+export const MOCK_AUDIT_LOGS: AuditLog[] = Array.from({ length: 40 }).map((_, i) => ({
+  id: `audit-${i}`,
+  actorId: MOCK_INTERNAL_USERS[i % 5].id,
+  tenantId: MOCK_TENANTS[i % 20].id,
+  action: ['CREDIT_ADJUST', 'TENANT_SUSPENDED', 'API_KEY_RESET', 'PLAN_UPGRADE'][i % 4],
+  reason: 'Routine administrative update requested via support ticket #4412',
+  timestamp: Date.now() - (i * 3600000 * 4),
+  payload: { previousValue: 100, newValue: 500 }
+}));
+export const MOCK_INCIDENTS: Incident[] = [
+  { id: 'inc-1', type: 'provider_latency', severity: 'high', tenantId: null, status: 'investigating', description: 'ElevenLabs latency spike in US-East', createdAt: Date.now() - 3600000 },
+  { id: 'inc-2', type: 'abuse_spike', severity: 'medium', tenantId: 'tenant-5', status: 'open', description: 'Concurrent call limit reached for Tenant-5', createdAt: Date.now() - 1800000 }
 ];
 export const MOCK_USERS = [{ id: 'u1', name: 'Admin User' }];
 export const MOCK_CHATS = [];
