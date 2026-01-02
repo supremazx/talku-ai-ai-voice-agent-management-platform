@@ -6,7 +6,8 @@ import type {
   Tenant,
   InternalUser,
   AuditLog,
-  Incident
+  Incident,
+  BusinessHours
 } from "@shared/types";
 import {
   MOCK_TENANTS,
@@ -15,6 +16,16 @@ import {
   MOCK_AUDIT_LOGS,
   MOCK_INCIDENTS
 } from "@shared/mock-data";
+const DEFAULT_HOURS: BusinessHours = {
+  enabled: false,
+  timezone: "UTC",
+  schedule: Array.from({ length: 7 }).map((_, i) => ({
+    day: i,
+    start: "09:00",
+    end: "17:00",
+    closed: i === 0 || i === 6
+  }))
+};
 export class TenantEntity extends IndexedEntity<Tenant> {
   static readonly entityName = "tenant";
   static readonly indexName = "tenants";
@@ -29,6 +40,61 @@ export class TenantEntity extends IndexedEntity<Tenant> {
     createdAt: 0
   };
   static seedData = MOCK_TENANTS;
+}
+export class PhoneNumberEntity extends IndexedEntity<PhoneNumber> {
+  static readonly entityName = "phone-number";
+  static readonly indexName = "phone-numbers";
+  static readonly initialState: PhoneNumber = {
+    id: "",
+    e164: "",
+    country: "US",
+    agentId: null,
+    tenantId: "",
+    status: "active",
+    routingRules: {
+      officeHours: DEFAULT_HOURS,
+      fallbackNumber: "",
+      inboundTimeout: 30
+    }
+  };
+  static seedData: PhoneNumber[] = [
+    {
+      id: "num-1",
+      e164: "+15551234567",
+      country: "US",
+      agentId: "agent-1",
+      tenantId: "tenant-1",
+      status: "active",
+      routingRules: { officeHours: DEFAULT_HOURS, fallbackNumber: "+15559990001", inboundTimeout: 20 }
+    },
+    {
+      id: "num-2",
+      e164: "+15552223333",
+      country: "US",
+      agentId: "agent-2",
+      tenantId: "tenant-1",
+      status: "active",
+      routingRules: { officeHours: DEFAULT_HOURS, fallbackNumber: "", inboundTimeout: 30 }
+    },
+    {
+      id: "num-3",
+      e164: "+442071234567",
+      country: "UK",
+      agentId: "agent-3",
+      tenantId: "tenant-2",
+      status: "active",
+      routingRules: { officeHours: DEFAULT_HOURS, fallbackNumber: "+442079998888", inboundTimeout: 15 }
+    },
+    {
+      id: "num-4",
+      e164: "+18887776666",
+      country: "US",
+      agentId: null,
+      tenantId: "tenant-3",
+      status: "active",
+      routingRules: { officeHours: DEFAULT_HOURS, fallbackNumber: "", inboundTimeout: 30 }
+    }
+  ];
 }
 export class InternalUserEntity extends IndexedEntity<InternalUser> {
   static readonly entityName = "internal-user";
@@ -77,13 +143,13 @@ export class CallSessionEntity extends IndexedEntity<GlobalCall> {
 export class AuditLogEntity extends IndexedEntity<AuditLog> {
   static readonly entityName = "audit-log";
   static readonly indexName = "audit-logs";
-  static readonly initialState: AuditLog = { 
-    id: "", 
-    actorId: "system", 
+  static readonly initialState: AuditLog = {
+    id: "",
+    actorId: "system",
     actorName: "System",
-    tenantId: null, 
-    action: "", 
-    reason: "", 
+    tenantId: null,
+    action: "",
+    reason: "",
     timestamp: 0,
     severity: "low"
   };

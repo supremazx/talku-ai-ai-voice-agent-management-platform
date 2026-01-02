@@ -7,9 +7,11 @@ import {
   CreditCard,
   Settings,
   Mic,
-  ChevronDown
+  ChevronDown,
+  Building2
 } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
 import {
   Sidebar,
   SidebarContent,
@@ -21,12 +23,17 @@ import {
   SidebarMenuButton,
 } from "@/components/ui/sidebar";
 import { cn } from "@/lib/utils";
-import { 
-  DropdownMenu, 
-  DropdownMenuContent, 
-  DropdownMenuItem, 
-  DropdownMenuTrigger 
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  DropdownMenuLabel,
+  DropdownMenuSeparator
 } from "@/components/ui/dropdown-menu";
+import { useTenantStore } from "@/lib/tenant-store";
+import { api } from "@/lib/api-client";
+import type { Tenant } from "@shared/types";
 const items = [
   { title: "Dashboard", icon: LayoutDashboard, url: "/app" },
   { title: "AI Agents", icon: Bot, url: "/app/agents" },
@@ -37,6 +44,15 @@ const items = [
 ];
 export function SidebarCustomer(): JSX.Element {
   const location = useLocation();
+  const activeTenantId = useTenantStore((s) => s.activeTenantId);
+  const activeTenant = useTenantStore((s) => s.activeTenant);
+  const setTenant = useTenantStore((s) => s.setTenant);
+  const { data: tenantsData } = useQuery({
+    queryKey: ['available-tenants'],
+    queryFn: () => api<{ items: Tenant[] }>('/api/admin/tenants')
+  });
+  const tenants = tenantsData?.items ?? [];
+  const currentTenant = activeTenant ?? tenants.find(t => t.id === activeTenantId) ?? { name: "Loading...", credits: 0 };
   return (
     <Sidebar collapsible="icon" className="border-r border-border/50">
       <SidebarHeader>
@@ -56,13 +72,28 @@ export function SidebarCustomer(): JSX.Element {
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <button className="flex items-center justify-between w-full px-3 py-2 text-sm font-medium bg-muted/50 rounded-md border border-border/50 hover:bg-muted transition-colors">
-                  <span className="truncate">Acme Corp</span>
+                  <div className="flex items-center gap-2 truncate">
+                    <Building2 className="h-4 w-4 text-orange-600" />
+                    <span className="truncate">{currentTenant.name}</span>
+                  </div>
                   <ChevronDown className="h-4 w-4 opacity-50" />
                 </button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent className="w-48" align="start">
-                <DropdownMenuItem>Switch Workspace</DropdownMenuItem>
-                <DropdownMenuItem>Team Settings</DropdownMenuItem>
+              <DropdownMenuContent className="w-56" align="start">
+                <DropdownMenuLabel>Switch Workspace</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                {tenants.map((t) => (
+                  <DropdownMenuItem 
+                    key={t.id} 
+                    onClick={() => setTenant(t)}
+                    className={cn(activeTenantId === t.id && "bg-accent font-bold")}
+                  >
+                    <div className="flex flex-col">
+                      <span>{t.name}</span>
+                      <span className="text-[10px] text-muted-foreground">{t.plan.toUpperCase()} Plan</span>
+                    </div>
+                  </DropdownMenuItem>
+                ))}
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
@@ -75,8 +106,8 @@ export function SidebarCustomer(): JSX.Element {
               <SidebarMenuItem key={item.title}>
                 <SidebarMenuButton
                   asChild
-                  tooltip={item.title}
                   isActive={location.pathname === item.url}
+                  tooltip={item.title}
                   className={cn(
                     "transition-all duration-200 hover:bg-accent group",
                     location.pathname === item.url && "bg-orange-50 text-orange-600 dark:bg-orange-950/20 dark:text-orange-400 font-semibold"
@@ -95,10 +126,16 @@ export function SidebarCustomer(): JSX.Element {
       <SidebarFooter>
         <div className="p-4 group-data-[collapsible=icon]:hidden">
           <div className="rounded-lg bg-primary/5 p-4 border border-primary/10">
-            <p className="text-[10px] font-bold text-muted-foreground uppercase mb-1">Credits</p>
-            <p className="text-sm font-bold">$124.50</p>
+            <div className="flex items-center justify-between mb-1">
+              <p className="text-[10px] font-bold text-muted-foreground uppercase">Credits</p>
+              <Link to="/app/billing" className="text-[10px] text-orange-600 font-bold hover:underline">Refill</Link>
+            </div>
+            <p className="text-sm font-bold">${currentTenant.credits?.toFixed(2) ?? '0.00'}</p>
             <div className="w-full h-1 bg-muted rounded-full mt-2 overflow-hidden">
-              <div className="w-3/4 h-full bg-orange-500" />
+              <div 
+                className="h-full bg-orange-500 transition-all duration-500" 
+                style={{ width: `${Math.min(100, (currentTenant.credits / 500) * 100)}%` }} 
+              />
             </div>
           </div>
         </div>

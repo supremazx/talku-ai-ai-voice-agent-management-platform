@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, Bot, Mic, Languages, Sparkles } from 'lucide-react';
+import { Plus, Bot, Mic, Languages, Sparkles, Trash2, Edit2 } from 'lucide-react';
 import { api } from '@/lib/api-client';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
@@ -12,20 +12,28 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Agent } from '@shared/types';
 import { Badge } from '@/components/ui/badge';
+import { useTenantStore } from '@/lib/tenant-store';
 import { toast } from 'sonner';
 export default function AgentsPage() {
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
+  const activeTenantId = useTenantStore((s) => s.activeTenantId);
   const { data: agents, isLoading } = useQuery({
-    queryKey: ['agents'],
-    queryFn: () => api<{ items: Agent[] }>('/api/agents')
+    queryKey: ['app-agents', activeTenantId],
+    queryFn: () => api<{ items: Agent[] }>('/api/app/agents', {
+      headers: { 'X-Tenant-Id': activeTenantId }
+    })
   });
   const createAgent = useMutation({
-    mutationFn: (newAgent: Partial<Agent>) => api<Agent>('/api/agents', { method: 'POST', body: JSON.stringify(newAgent) }),
+    mutationFn: (newAgent: Partial<Agent>) => api<Agent>('/api/app/agents', { 
+      method: 'POST', 
+      headers: { 'X-Tenant-Id': activeTenantId },
+      body: JSON.stringify(newAgent) 
+    }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['agents'] });
+      queryClient.invalidateQueries({ queryKey: ['app-agents'] });
       setOpen(false);
-      toast.success('Agent created successfully');
+      toast.success('AI Persona deployed successfully');
     }
   });
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
@@ -46,7 +54,7 @@ export default function AgentsPage() {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-3xl font-bold tracking-tight">AI Agents</h1>
-            <p className="text-muted-foreground">Design and manage your voice personalities.</p>
+            <p className="text-muted-foreground">Configure the personalities and behavioral logic of your voice AI.</p>
           </div>
           <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>
@@ -56,38 +64,39 @@ export default function AgentsPage() {
             </DialogTrigger>
             <DialogContent className="sm:max-w-[500px]">
               <DialogHeader>
-                <DialogTitle>New Voice Agent</DialogTitle>
+                <DialogTitle>New Voice Persona</DialogTitle>
               </DialogHeader>
               <form onSubmit={handleSubmit} className="space-y-4 mt-4">
                 <div className="space-y-2">
-                  <Label htmlFor="name">Agent Name</Label>
-                  <Input id="name" name="name" placeholder="e.g. Receptionist Bot" required />
+                  <Label htmlFor="name">Display Name</Label>
+                  <Input id="name" name="name" placeholder="e.g. Concierge" required />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="voice">Voice Model</Label>
+                  <Label htmlFor="voice">Voice Profile</Label>
                   <Select name="voice" defaultValue="bella">
                     <SelectTrigger>
                       <SelectValue placeholder="Select a voice" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="bella">Bella (Soft, Friendly)</SelectItem>
-                      <SelectItem value="echo">Echo (Confident, Deep)</SelectItem>
-                      <SelectItem value="nova">Nova (Bright, Energetic)</SelectItem>
+                      <SelectItem value="bella">Bella (Soft, Feminine)</SelectItem>
+                      <SelectItem value="echo">Echo (Neutral, Informative)</SelectItem>
+                      <SelectItem value="nova">Nova (Cheerful, Fast)</SelectItem>
+                      <SelectItem value="onyx">Onyx (Deep, Authoritative)</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="prompt">System Prompt</Label>
-                  <Textarea 
-                    id="prompt" 
-                    name="prompt" 
-                    className="h-32" 
-                    placeholder="Describe how the agent should behave..." 
-                    required 
+                  <Label htmlFor="prompt">Behavior Instructions (System Prompt)</Label>
+                  <Textarea
+                    id="prompt"
+                    name="prompt"
+                    className="h-40 font-mono text-xs"
+                    placeholder="You are a polite receptionist for a dental clinic. Your goal is to collect names and phone numbers..."
+                    required
                   />
                 </div>
                 <Button type="submit" className="w-full" disabled={createAgent.isPending}>
-                  {createAgent.isPending ? "Creating..." : "Save Agent"}
+                  {createAgent.isPending ? "Syncing..." : "Deploy Agent"}
                 </Button>
               </form>
             </DialogContent>
@@ -95,28 +104,45 @@ export default function AgentsPage() {
         </div>
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
           {isLoading ? (
-            Array.from({ length: 3 }).map((_, i) => <Card key={i} className="h-48 animate-pulse bg-muted" />)
+            Array.from({ length: 3 }).map((_, i) => (
+              <Card key={i} className="h-64 animate-pulse border-muted/40 bg-muted/20" />
+            ))
+          ) : agents?.items.length === 0 ? (
+            <div className="col-span-full py-20 text-center border-2 border-dashed rounded-xl border-muted/50">
+              <Bot className="h-12 w-12 mx-auto text-muted-foreground opacity-20 mb-4" />
+              <p className="text-muted-foreground">No agents found for this workspace.</p>
+            </div>
           ) : (
             agents?.items.map((agent) => (
-              <Card key={agent.id} className="group overflow-hidden border-muted/40 transition-all hover:shadow-md">
+              <Card key={agent.id} className="group overflow-hidden border-muted/40 transition-all hover:shadow-lg hover:border-orange-500/30">
                 <CardHeader className="pb-2">
                   <div className="flex items-center justify-between">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-orange-100 dark:bg-orange-950 text-orange-600">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-orange-100 dark:bg-orange-950/20 text-orange-600 shadow-sm border border-orange-500/10">
                       <Bot className="h-6 w-6" />
                     </div>
-                    <Badge variant="outline" className="text-[10px]">{agent.provider}</Badge>
+                    <Badge variant="outline" className="text-[9px] uppercase tracking-tighter opacity-70">
+                      {agent.provider} • v1
+                    </Badge>
                   </div>
-                  <CardTitle className="mt-4">{agent.name}</CardTitle>
+                  <CardTitle className="mt-4 flex items-center gap-2">
+                    {agent.name}
+                    {agent.temperature > 0.8 && <Sparkles className="h-3 w-3 text-orange-500" />}
+                  </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <p className="text-sm text-muted-foreground line-clamp-2 min-h-[2.5rem]">{agent.prompt}</p>
+                  <p className="text-xs text-muted-foreground line-clamp-3 min-h-[3rem] italic">
+                    "{agent.prompt}"
+                  </p>
                 </CardContent>
-                <CardFooter className="bg-muted/30 flex justify-between pt-4">
-                  <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                <CardFooter className="bg-muted/10 flex justify-between pt-4 border-t">
+                  <div className="flex items-center gap-3 text-[10px] text-muted-foreground uppercase font-bold tracking-widest">
                     <span className="flex items-center gap-1"><Mic className="h-3 w-3" /> {agent.voice}</span>
-                    <span className="flex items-center gap-1"><Languages className="h-3 w-3" /> {agent.language}</span>
+                    <span className="flex items-center gap-1"><Languages className="h-3 w-3" /> {agent.language.split('-')[0]}</span>
                   </div>
-                  <Button variant="ghost" size="sm" className="h-8 text-xs">Configure</Button>
+                  <div className="flex gap-1">
+                    <Button variant="ghost" size="icon" className="h-7 w-7"><Edit2 className="h-3 w-3" /></Button>
+                    <Button variant="ghost" size="icon" className="h-7 w-7 text-rose-500 hover:text-rose-600 hover:bg-rose-50"><Trash2 className="h-3 w-3" /></Button>
+                  </div>
                 </CardFooter>
               </Card>
             ))

@@ -6,12 +6,12 @@ import {
   CallSessionEntity,
   AuditLogEntity,
   IncidentEntity,
-  AgentEntity
+  AgentEntity,
+  PhoneNumberEntity
 } from "./entities";
 import { ok, bad, notFound } from './core-utils';
-import { DashboardStats, BillingRecord, ProviderMetric } from "@shared/types";
+import { DashboardStats, BillingRecord, ProviderMetric, Agent, PhoneNumber } from "@shared/types";
 export function userRoutes(app: Hono<{ Bindings: Env }>) {
-  // TENANT SCOPING MIDDLEWARE SIMULATION
   const getTenantId = (c: any) => c.req.header('X-Tenant-Id') || 'tenant-1';
   // --- CUSTOMER SCOPED ROUTES (/api/app/*) ---
   app.get('/api/app/agents', async (c) => {
@@ -20,6 +20,50 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
     const list = await AgentEntity.list(c.env);
     const filtered = list.items.filter(a => a.tenantId === tenantId);
     return ok(c, { items: filtered });
+  });
+  app.post('/api/app/agents', async (c) => {
+    const tenantId = getTenantId(c);
+    const body = await c.req.json();
+    const agent: Agent = {
+      ...AgentEntity.initialState,
+      ...body,
+      id: crypto.randomUUID(),
+      tenantId
+    };
+    const created = await AgentEntity.create(c.env, agent);
+    return ok(c, created);
+  });
+  app.get('/api/app/numbers', async (c) => {
+    const tenantId = getTenantId(c);
+    await PhoneNumberEntity.ensureSeed(c.env);
+    const list = await PhoneNumberEntity.list(c.env);
+    const filtered = list.items.filter(n => n.tenantId === tenantId);
+    return ok(c, { items: filtered });
+  });
+  app.patch('/api/app/numbers/:id', async (c) => {
+    const tenantId = getTenantId(c);
+    const id = c.req.param('id');
+    const updates = await c.req.json();
+    const inst = new PhoneNumberEntity(c.env, id);
+    if (!await inst.exists()) return notFound(c);
+    const state = await inst.getState();
+    if (state.tenantId !== tenantId) return bad(c, 'Unauthorized access to number');
+    await inst.patch(updates);
+    return ok(c, await inst.getState());
+  });
+  app.post('/api/app/numbers/provision', async (c) => {
+    const tenantId = getTenantId(c);
+    const { e164, country } = await c.req.json();
+    const number: PhoneNumber = {
+      ...PhoneNumberEntity.initialState,
+      id: crypto.randomUUID(),
+      e164,
+      country: country || 'US',
+      tenantId,
+      status: 'active'
+    };
+    const created = await PhoneNumberEntity.create(c.env, number);
+    return ok(c, created);
   });
   app.get('/api/app/calls', async (c) => {
     const tenantId = getTenantId(c);
@@ -119,6 +163,7 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
     return ok(c, await AgentEntity.list(c.env));
   });
   app.get('/api/numbers', async (c) => {
-    return ok(c, { items: [] });
+    await PhoneNumberEntity.ensureSeed(c.env);
+    return ok(c, await PhoneNumberEntity.list(c.env));
   });
 }

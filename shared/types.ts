@@ -8,6 +8,21 @@ export type CallStatus = 'completed' | 'ongoing' | 'failed' | 'no-answer';
 export type AdminRole = 'owner' | 'admin' | 'support' | 'finance' | 'read-only';
 export type TenantStatus = 'active' | 'suspended' | 'pending' | 'restricted';
 export type TenantPlan = 'free' | 'pro' | 'enterprise';
+export interface BusinessHours {
+  enabled: boolean;
+  timezone: string;
+  schedule: {
+    day: number; // 0-6
+    start: string; // HH:mm
+    end: string; // HH:mm
+    closed: boolean;
+  }[];
+}
+export interface RoutingRules {
+  officeHours: BusinessHours;
+  fallbackNumber: string;
+  inboundTimeout: number; // seconds
+}
 export interface InternalUser {
   id: string;
   email: string;
@@ -33,8 +48,8 @@ export interface Tenant {
   createdAt: number;
 }
 export interface TenantContext {
+  activeTenant: Tenant | null;
   activeTenantId: string;
-  activeTenantName: string;
 }
 export interface Agent {
   id: string;
@@ -53,8 +68,9 @@ export interface PhoneNumber {
   agentId: string | null;
   tenantId: string;
   status: 'active' | 'pending' | 'released';
+  routingRules: RoutingRules;
 }
-export interface GlobalCall {
+export type GlobalCall = {
   id: string;
   tenantId: string;
   agentId: string;
@@ -71,7 +87,7 @@ export interface GlobalCall {
     tts: 'ok' | 'error';
   };
   transcript: { role: 'agent' | 'user'; text: string; ts: number }[];
-}
+};
 export type CallSession = GlobalCall;
 export interface BillingRecord {
   id: string;
