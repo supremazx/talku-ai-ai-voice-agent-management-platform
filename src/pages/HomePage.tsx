@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { DashboardStats, CallSession } from '@shared/types';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
+import { cn } from '@/lib/utils';
 export function HomePage() {
   const { data: stats, isLoading: statsLoading } = useQuery({
     queryKey: ['stats'],

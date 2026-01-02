@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { CallSession } from '@shared/types';
+import { cn } from '@/lib/utils';
 export default function CallLogsPage() {
   const [selectedCall, setSelectedCall] = useState<CallSession | null>(null);
   const { data: calls, isLoading } = useQuery({
@@ -35,24 +36,30 @@ export default function CallLogsPage() {
         <div className="rounded-xl border bg-card shadow-soft overflow-hidden">
           <Table>
             <TableHeader className="bg-muted/50">
-              <TableRow>
-                <TableHead>Time</TableHead>
-                <TableHead>From</TableHead>
-                <TableHead>To</TableHead>
-                <TableHead>Duration</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Cost</TableHead>
-                <TableHead className="text-right">Action</TableHead>
+                <TableRow>
+                  <TableHead>Time</TableHead>
+                  <TableHead>From</TableHead>
+                  <TableHead>To</TableHead>
+                  <TableHead>Duration</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Cost</TableHead>
+                  <TableHead className="text-right">Action</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {isLoading ? (
                 <TableRow><TableCell colSpan={7} className="text-center py-20">Analysing records...</TableCell></TableRow>
+              ) : !calls?.items?.length ? (
+                <TableRow>
+                  <TableCell colSpan={7} className="text-center py-20 text-muted-foreground">
+                    No call records found
+                  </TableCell>
+                </TableRow>
               ) : (
-                calls?.items.map((call) => (
+                (calls?.items || []).map((call) => (
                   <TableRow key={call.id} className="hover:bg-muted/30 transition-colors">
                     <TableCell className="text-xs text-muted-foreground">
-                      {format(call.startTime, 'MMM dd, HH:mm')}
+                      {format(new Date(call.startTime), 'MMM dd, HH:mm')}
                     </TableCell>
                     <TableCell className="font-mono text-sm">{call.fromNumber}</TableCell>
                     <TableCell className="font-mono text-sm">{call.toNumber}</TableCell>
@@ -92,6 +99,7 @@ export default function CallLogsPage() {
                   <div>
                     <p className="text-muted-foreground uppercase tracking-widest font-bold text-[10px]">Duration</p>
                     <p className="mt-1">{selectedCall.duration} seconds</p>
+                    <p className="text-[10px] text-emerald-600 dark:text-emerald-400 mt-1">${selectedCall.cost?.toFixed(2) || '0.00'}</p>
                   </div>
                 </div>
                 <div className="space-y-4">
