@@ -1,41 +1,27 @@
-/**
- * Minimal real-world demo: One Durable Object instance per entity (User, ChatBoard), with Indexes for listing.
- */
 import { IndexedEntity } from "./core-utils";
-import type { User, Chat, ChatMessage } from "@shared/types";
-import { MOCK_CHAT_MESSAGES, MOCK_CHATS, MOCK_USERS } from "@shared/mock-data";
-
-// USER ENTITY: one DO instance per user
-export class UserEntity extends IndexedEntity<User> {
-  static readonly entityName = "user";
-  static readonly indexName = "users";
-  static readonly initialState: User = { id: "", name: "" };
-  static seedData = MOCK_USERS;
+import type { Agent, PhoneNumber, CallSession, BillingRecord } from "@shared/types";
+import { MOCK_AGENTS, MOCK_NUMBERS, MOCK_CALLS, MOCK_BILLING } from "@shared/mock-data";
+export class AgentEntity extends IndexedEntity<Agent> {
+  static readonly entityName = "agent";
+  static readonly indexName = "agents";
+  static readonly initialState: Agent = { id: "", name: "", prompt: "", voice: "bella", language: "en-US", provider: "elevenlabs", temperature: 0.7 };
+  static seedData = MOCK_AGENTS;
 }
-
-// CHAT BOARD ENTITY: one DO instance per chat board, stores its own messages
-export type ChatBoardState = Chat & { messages: ChatMessage[] };
-
-const SEED_CHAT_BOARDS: ChatBoardState[] = MOCK_CHATS.map(c => ({
-  ...c,
-  messages: MOCK_CHAT_MESSAGES.filter(m => m.chatId === c.id),
-}));
-
-export class ChatBoardEntity extends IndexedEntity<ChatBoardState> {
-  static readonly entityName = "chat";
-  static readonly indexName = "chats";
-  static readonly initialState: ChatBoardState = { id: "", title: "", messages: [] };
-  static seedData = SEED_CHAT_BOARDS;
-
-  async listMessages(): Promise<ChatMessage[]> {
-    const { messages } = await this.getState();
-    return messages;
-  }
-
-  async sendMessage(userId: string, text: string): Promise<ChatMessage> {
-    const msg: ChatMessage = { id: crypto.randomUUID(), chatId: this.id, userId, text, ts: Date.now() };
-    await this.mutate(s => ({ ...s, messages: [...s.messages, msg] }));
-    return msg;
-  }
+export class NumberEntity extends IndexedEntity<PhoneNumber> {
+  static readonly entityName = "phone-number";
+  static readonly indexName = "phone-numbers";
+  static readonly initialState: PhoneNumber = { id: "", e164: "", country: "US", agentId: null, status: "pending" };
+  static seedData = MOCK_NUMBERS;
 }
-
+export class CallSessionEntity extends IndexedEntity<CallSession> {
+  static readonly entityName = "call-session";
+  static readonly indexName = "call-sessions";
+  static readonly initialState: CallSession = { id: "", agentId: "", fromNumber: "", toNumber: "", startTime: 0, duration: 0, cost: 0, status: "completed", transcript: [] };
+  static seedData = MOCK_CALLS;
+}
+export class BillingEntity extends IndexedEntity<BillingRecord> {
+  static readonly entityName = "billing";
+  static readonly indexName = "billing-records";
+  static readonly initialState: BillingRecord = { id: "", amount: 0, type: "usage", description: "", ts: 0 };
+  static seedData = MOCK_BILLING;
+}
