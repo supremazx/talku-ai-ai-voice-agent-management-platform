@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, Bot, Mic, Languages, Sparkles, Trash2, Edit2 } from 'lucide-react';
+import { Plus, Bot, Mic, Languages, Sparkles, Trash2, Edit2, Radio } from 'lucide-react';
 import { api } from '@/lib/api-client';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
@@ -9,8 +9,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Agent } from '@shared/types';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from '@/components/ui/dialog';
+import { Agent, GlobalCall } from '@shared/types';
 import { Badge } from '@/components/ui/badge';
 import { useTenantStore } from '@/lib/tenant-store';
 import { toast } from 'sonner';
@@ -24,11 +24,18 @@ export default function AgentsPage() {
       headers: { 'X-Tenant-Id': activeTenantId }
     })
   });
+  const { data: liveData } = useQuery({
+    queryKey: ['app-calls-live', activeTenantId],
+    queryFn: () => api<{ items: GlobalCall[] }>('/api/app/calls/live', {
+      headers: { 'X-Tenant-Id': activeTenantId }
+    }),
+    refetchInterval: 5000,
+  });
   const createAgent = useMutation({
-    mutationFn: (newAgent: Partial<Agent>) => api<Agent>('/api/app/agents', { 
-      method: 'POST', 
+    mutationFn: (newAgent: Partial<Agent>) => api<Agent>('/api/app/agents', {
+      method: 'POST',
       headers: { 'X-Tenant-Id': activeTenantId },
-      body: JSON.stringify(newAgent) 
+      body: JSON.stringify(newAgent)
     }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['app-agents'] });
@@ -48,6 +55,9 @@ export default function AgentsPage() {
       temperature: 0.7
     });
   };
+  const isAgentLive = (agentId: string) => {
+    return liveData?.items?.some(call => call.agentId === agentId) ?? false;
+  };
   return (
     <AppLayout container>
       <div className="space-y-8">
@@ -65,6 +75,9 @@ export default function AgentsPage() {
             <DialogContent className="sm:max-w-[500px]">
               <DialogHeader>
                 <DialogTitle>New Voice Persona</DialogTitle>
+                <DialogDescription>
+                  Define the name, voice profile, and behavioral instructions for your new AI agent.
+                </DialogDescription>
               </DialogHeader>
               <form onSubmit={handleSubmit} className="space-y-4 mt-4">
                 <div className="space-y-2">
@@ -91,7 +104,7 @@ export default function AgentsPage() {
                     id="prompt"
                     name="prompt"
                     className="h-40 font-mono text-xs"
-                    placeholder="You are a polite receptionist for a dental clinic. Your goal is to collect names and phone numbers..."
+                    placeholder="You are a polite receptionist..."
                     required
                   />
                 </div>
@@ -104,25 +117,21 @@ export default function AgentsPage() {
         </div>
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
           {isLoading ? (
-            Array.from({ length: 3 }).map((_, i) => (
-              <Card key={i} className="h-64 animate-pulse border-muted/40 bg-muted/20" />
-            ))
-          ) : agents?.items.length === 0 ? (
-            <div className="col-span-full py-20 text-center border-2 border-dashed rounded-xl border-muted/50">
-              <Bot className="h-12 w-12 mx-auto text-muted-foreground opacity-20 mb-4" />
-              <p className="text-muted-foreground">No agents found for this workspace.</p>
-            </div>
+            Array.from({ length: 3 }).map((_, i) => <Card key={i} className="h-64 animate-pulse border-muted/40" />)
           ) : (
             agents?.items.map((agent) => (
-              <Card key={agent.id} className="group overflow-hidden border-muted/40 transition-all hover:shadow-lg hover:border-orange-500/30">
+              <Card key={agent.id} className="group relative overflow-hidden border-muted/40 transition-all hover:shadow-lg hover:border-orange-500/30">
                 <CardHeader className="pb-2">
                   <div className="flex items-center justify-between">
                     <div className="flex h-10 w-10 items-center justify-center rounded-full bg-orange-100 dark:bg-orange-950/20 text-orange-600 shadow-sm border border-orange-500/10">
                       <Bot className="h-6 w-6" />
                     </div>
-                    <Badge variant="outline" className="text-[9px] uppercase tracking-tighter opacity-70">
-                      {agent.provider} • v1
-                    </Badge>
+                    {isAgentLive(agent.id) && (
+                      <Badge className="bg-emerald-500/10 text-emerald-600 border-emerald-500/20 flex gap-1 animate-pulse">
+                        <Radio className="h-3 w-3" />
+                        LIVE
+                      </Badge>
+                    )}
                   </div>
                   <CardTitle className="mt-4 flex items-center gap-2">
                     {agent.name}
@@ -137,11 +146,10 @@ export default function AgentsPage() {
                 <CardFooter className="bg-muted/10 flex justify-between pt-4 border-t">
                   <div className="flex items-center gap-3 text-[10px] text-muted-foreground uppercase font-bold tracking-widest">
                     <span className="flex items-center gap-1"><Mic className="h-3 w-3" /> {agent.voice}</span>
-                    <span className="flex items-center gap-1"><Languages className="h-3 w-3" /> {agent.language.split('-')[0]}</span>
                   </div>
                   <div className="flex gap-1">
                     <Button variant="ghost" size="icon" className="h-7 w-7"><Edit2 className="h-3 w-3" /></Button>
-                    <Button variant="ghost" size="icon" className="h-7 w-7 text-rose-500 hover:text-rose-600 hover:bg-rose-50"><Trash2 className="h-3 w-3" /></Button>
+                    <Button variant="ghost" size="icon" className="h-7 w-7 text-rose-500"><Trash2 className="h-3 w-3" /></Button>
                   </div>
                 </CardFooter>
               </Card>

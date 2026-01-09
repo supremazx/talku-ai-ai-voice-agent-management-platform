@@ -57,50 +57,6 @@ export class PhoneNumberEntity extends IndexedEntity<PhoneNumber> {
       inboundTimeout: 30
     }
   };
-  static seedData: PhoneNumber[] = [
-    {
-      id: "num-1",
-      e164: "+15551234567",
-      country: "US",
-      agentId: "agent-1",
-      tenantId: "tenant-1",
-      status: "active",
-      routingRules: { officeHours: DEFAULT_HOURS, fallbackNumber: "+15559990001", inboundTimeout: 20 }
-    },
-    {
-      id: "num-2",
-      e164: "+15552223333",
-      country: "US",
-      agentId: "agent-2",
-      tenantId: "tenant-1",
-      status: "active",
-      routingRules: { officeHours: DEFAULT_HOURS, fallbackNumber: "", inboundTimeout: 30 }
-    },
-    {
-      id: "num-3",
-      e164: "+442071234567",
-      country: "UK",
-      agentId: "agent-3",
-      tenantId: "tenant-2",
-      status: "active",
-      routingRules: { officeHours: DEFAULT_HOURS, fallbackNumber: "+442079998888", inboundTimeout: 15 }
-    },
-    {
-      id: "num-4",
-      e164: "+18887776666",
-      country: "US",
-      agentId: null,
-      tenantId: "tenant-3",
-      status: "active",
-      routingRules: { officeHours: DEFAULT_HOURS, fallbackNumber: "", inboundTimeout: 30 }
-    }
-  ];
-}
-export class InternalUserEntity extends IndexedEntity<InternalUser> {
-  static readonly entityName = "internal-user";
-  static readonly indexName = "internal-users";
-  static readonly initialState: InternalUser = { id: "", email: "", name: "", role: "read-only", lastLogin: 0 };
-  static seedData = MOCK_INTERNAL_USERS;
 }
 export class AgentEntity extends IndexedEntity<Agent> {
   static readonly entityName = "agent";
@@ -115,11 +71,6 @@ export class AgentEntity extends IndexedEntity<Agent> {
     provider: "openai",
     temperature: 0.7
   };
-  static seedData: Agent[] = [
-    { id: "agent-1", tenantId: "tenant-1", name: "Support Agent", prompt: "Help users with their orders.", voice: "bella", language: "en-US", provider: "openai", temperature: 0.7 },
-    { id: "agent-2", tenantId: "tenant-1", name: "Sales Agent", prompt: "Pitch our new product.", voice: "echo", language: "en-US", provider: "elevenlabs", temperature: 0.8 },
-    { id: "agent-3", tenantId: "tenant-2", name: "Receptionist", prompt: "Greet visitors.", voice: "nova", language: "en-US", provider: "openai", temperature: 0.5 },
-  ];
 }
 export class CallSessionEntity extends IndexedEntity<GlobalCall> {
   static readonly entityName = "call-session";
@@ -135,10 +86,20 @@ export class CallSessionEntity extends IndexedEntity<GlobalCall> {
     cost: 0,
     margin: 0,
     status: "completed",
+    mediasfu_status: "ended",
+    is_live: false,
+    metadata: {
+      sessionId: "",
+      latencies: { stt_ms: 0, llm_ms: 0, tts_ms: 0 },
+      provider: "openai"
+    },
     providerStatuses: { stt: 'ok', llm: 'ok', tts: 'ok' },
     transcript: []
   };
-  static seedData = MOCK_CALLS;
+  static async listActive(env: any): Promise<GlobalCall[]> {
+    const list = await this.list(env);
+    return list.items.filter(c => c.is_live);
+  }
 }
 export class AuditLogEntity extends IndexedEntity<AuditLog> {
   static readonly entityName = "audit-log";

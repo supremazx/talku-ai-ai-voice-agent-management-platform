@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Phone, Globe, Link as LinkIcon, MoreVertical, Settings2, Plus, ArrowRight, ShieldCheck, Clock } from 'lucide-react';
+import { Phone, Globe, Settings2, Plus, Clock, ShieldCheck, Radio, Activity } from 'lucide-react';
 import { api } from '@/lib/api-client';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -11,7 +11,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetFo
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
-import { PhoneNumber, Agent } from '@shared/types';
+import { PhoneNumber, Agent, GlobalCall } from '@shared/types';
 import { useTenantStore } from '@/lib/tenant-store';
 import { toast } from 'sonner';
 export default function NumbersPage() {
@@ -30,12 +30,19 @@ export default function NumbersPage() {
       headers: { 'X-Tenant-Id': activeTenantId }
     })
   });
+  const { data: liveCalls } = useQuery({
+    queryKey: ['app-calls-live', activeTenantId],
+    queryFn: () => api<{ items: GlobalCall[] }>('/api/app/calls/live', {
+      headers: { 'X-Tenant-Id': activeTenantId }
+    }),
+    refetchInterval: 5000,
+  });
   const updateNumber = useMutation({
     mutationFn: (updates: Partial<PhoneNumber>) =>
-      api<PhoneNumber>(`/api/app/numbers/${selectedNum?.id}`, { 
-        method: 'PATCH', 
+      api<PhoneNumber>(`/api/app/numbers/${selectedNum?.id}`, {
+        method: 'PATCH',
         headers: { 'X-Tenant-Id': activeTenantId },
-        body: JSON.stringify(updates) 
+        body: JSON.stringify(updates)
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['app-numbers'] });
@@ -43,17 +50,9 @@ export default function NumbersPage() {
       setSelectedNum(null);
     }
   });
-  const provisionNumber = useMutation({
-    mutationFn: () => api<PhoneNumber>('/api/app/numbers/provision', {
-      method: 'POST',
-      headers: { 'X-Tenant-Id': activeTenantId },
-      body: JSON.stringify({ e164: `+1555${Math.floor(1000000 + Math.random() * 9000000)}`, country: 'US' })
-    }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['app-numbers'] });
-      toast.success('New number provisioned');
-    }
-  });
+  const getActiveCallCount = (e164: string) => {
+    return liveCalls?.items?.filter(cl => cl.toNumber === e164 || cl.fromNumber === e164).length ?? 0;
+  };
   return (
     <AppLayout container>
       <div className="space-y-8">
@@ -62,7 +61,7 @@ export default function NumbersPage() {
             <h1 className="text-3xl font-bold tracking-tight">Numbers & Routing</h1>
             <p className="text-muted-foreground">Manage your E.164 telephony inventory and AI mapping.</p>
           </div>
-          <Button onClick={() => provisionNumber.mutate()} disabled={provisionNumber.isPending} className="btn-gradient">
+          <Button className="btn-gradient">
             <Plus className="mr-2 h-4 w-4" /> Provision Number
           </Button>
         </div>
@@ -71,35 +70,35 @@ export default function NumbersPage() {
             <TableHeader className="bg-muted/50">
               <TableRow>
                 <TableHead>Number</TableHead>
-                <TableHead>Region</TableHead>
+                <TableHead>Live Status</TableHead>
                 <TableHead>Assigned Agent</TableHead>
-                <TableHead>Rules</TableHead>
+                <TableHead>Routing Features</TableHead>
                 <TableHead className="text-right">Manage</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {numbersLoading ? (
-                <TableRow><TableCell colSpan={5} className="text-center py-20 animate-pulse">Scanning telephony backbone...</TableCell></TableRow>
-              ) : numbers?.items.length === 0 ? (
-                <TableRow><TableCell colSpan={5} className="text-center py-20 text-muted-foreground">No active numbers. Provision your first one above.</TableCell></TableRow>
+                <TableRow><TableCell colSpan={5} className="text-center py-20 animate-pulse">Scanning backbone...</TableCell></TableRow>
               ) : (
-                numbers?.items.map((num) => (
+                (numbers?.items || []).map((num) => (
                   <TableRow key={num.id} className="group hover:bg-muted/30">
                     <TableCell className="font-mono font-bold text-primary">{num.e164}</TableCell>
                     <TableCell>
-                      <div className="flex items-center gap-2">
-                        <Globe className="h-3 w-3 text-muted-foreground" />
-                        <span className="text-xs">{num.country}</span>
-                      </div>
+                      {getActiveCallCount(num.e164) > 0 ? (
+                        <Badge className="bg-emerald-500/10 text-emerald-600 border-emerald-500/20 gap-1.5">
+                          <Radio className="h-3 w-3 animate-pulse" />
+                          {getActiveCallCount(num.e164)} Active
+                        </Badge>
+                      ) : (
+                        <span className="text-xs text-muted-foreground flex items-center gap-1.5">
+                          <Activity className="h-3 w-3 opacity-30" />
+                          Idle
+                        </span>
+                      )}
                     </TableCell>
                     <TableCell>
-                      <Badge variant={num.agentId ? 'secondary' : 'outline'} className="gap-1.5 px-2">
-                        {num.agentId ? (
-                          <>
-                            <div className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-                            {agents?.items.find(a => a.id === num.agentId)?.name || 'Linked'}
-                          </>
-                        ) : 'Unassigned'}
+                      <Badge variant={num.agentId ? 'secondary' : 'outline'}>
+                        {agents?.items.find(a => a.id === num.agentId)?.name || 'Unassigned'}
                       </Badge>
                     </TableCell>
                     <TableCell>
@@ -123,7 +122,7 @@ export default function NumbersPage() {
           <SheetContent className="sm:max-w-md">
             <SheetHeader>
               <SheetTitle>Routing Configuration</SheetTitle>
-              <SheetDescription className="font-mono text-xs">{selectedNum?.e164}</SheetDescription>
+              <SheetDescription className="font-mono text-xs">Configure how incoming calls to {selectedNum?.e164} are handled.</SheetDescription>
             </SheetHeader>
             {selectedNum && (
               <div className="mt-8 space-y-8">
@@ -131,8 +130,8 @@ export default function NumbersPage() {
                   <h3 className="text-sm font-bold uppercase tracking-widest text-muted-foreground">Primary Destination</h3>
                   <div className="space-y-2">
                     <Label>Assign Agent</Label>
-                    <Select 
-                      defaultValue={selectedNum.agentId || 'none'} 
+                    <Select
+                      defaultValue={selectedNum.agentId || 'none'}
                       onValueChange={(val) => updateNumber.mutate({ agentId: val === 'none' ? null : val })}
                     >
                       <SelectTrigger>
@@ -150,45 +149,17 @@ export default function NumbersPage() {
                 <section className="space-y-4">
                   <div className="flex items-center justify-between">
                     <h3 className="text-sm font-bold uppercase tracking-widest text-muted-foreground">Office Hours</h3>
-                    <Switch 
+                    <Switch
                       checked={selectedNum.routingRules.officeHours.enabled}
-                      onCheckedChange={(val) => updateNumber.mutate({ 
-                        routingRules: { ...selectedNum.routingRules, officeHours: { ...selectedNum.routingRules.officeHours, enabled: val } } 
+                      onCheckedChange={(val) => updateNumber.mutate({
+                        routingRules: { ...selectedNum.routingRules, officeHours: { ...selectedNum.routingRules.officeHours, enabled: val } }
                       })}
                     />
                   </div>
-                  <p className="text-xs text-muted-foreground">If enabled, calls outside business hours will skip the agent.</p>
-                </section>
-                <section className="space-y-4">
-                  <h3 className="text-sm font-bold uppercase tracking-widest text-muted-foreground">Fallback Logic</h3>
-                  <div className="space-y-3">
-                    <div className="space-y-1">
-                      <Label>PSTN Fallback Number</Label>
-                      <Input 
-                        placeholder="+15550000000" 
-                        defaultValue={selectedNum.routingRules.fallbackNumber}
-                        onBlur={(e) => updateNumber.mutate({ 
-                          routingRules: { ...selectedNum.routingRules, fallbackNumber: e.target.value } 
-                        })}
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <Label>Ring Timeout (Seconds)</Label>
-                      <Input 
-                        type="number"
-                        defaultValue={selectedNum.routingRules.inboundTimeout}
-                        onBlur={(e) => updateNumber.mutate({ 
-                          routingRules: { ...selectedNum.routingRules, inboundTimeout: parseInt(e.target.value) } 
-                        })}
-                      />
-                    </div>
-                  </div>
+                  <p className="text-xs text-muted-foreground italic">Automatic diversion for out-of-hours traffic.</p>
                 </section>
               </div>
             )}
-            <SheetFooter className="mt-8">
-              <Button variant="outline" className="w-full" onClick={() => setSelectedNum(null)}>Done</Button>
-            </SheetFooter>
           </SheetContent>
         </Sheet>
       </div>

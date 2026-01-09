@@ -1,13 +1,28 @@
 export interface ApiResponse<T = unknown> {
   success: boolean;
   data?: T;
-  error?: string;
 }
 export type VoiceProvider = 'elevenlabs' | 'openai' | 'deepgram';
 export type CallStatus = 'completed' | 'ongoing' | 'failed' | 'no-answer';
-export type AdminRole = 'owner' | 'admin' | 'support' | 'finance' | 'read-only';
-export type TenantStatus = 'active' | 'suspended' | 'pending' | 'restricted';
-export type TenantPlan = 'free' | 'pro' | 'enterprise';
+export type MediaSFUStatus = 'initiating' | 'ringing' | 'connected' | 'ended' | 'recording';
+export type MediaSFUEvent = 
+  | 'call.started' 
+  | 'call.answered' 
+  | 'stt.partial' 
+  | 'llm.response' 
+  | 'tts.played' 
+  | 'recording.saved' 
+  | 'call.ended';
+export interface MediaSFUMetadata {
+  sessionId: string;
+  recordingUrl?: string;
+  latencies: {
+    stt_ms: number;
+    llm_ms: number;
+    tts_ms: number;
+  };
+  provider: VoiceProvider;
+}
 export interface BusinessHours {
   enabled: boolean;
   timezone: string;
@@ -23,18 +38,11 @@ export interface RoutingRules {
   fallbackNumber: string;
   inboundTimeout: number; // seconds
 }
-export interface InternalUser {
-  id: string;
-  email: string;
-  name: string;
-  role: AdminRole;
-  lastLogin: number;
-}
 export interface Tenant {
   id: string;
   name: string;
-  plan: TenantPlan;
-  status: TenantStatus;
+  plan: 'free' | 'pro' | 'enterprise';
+  status: 'active' | 'suspended' | 'pending' | 'restricted';
   credits: number;
   limits: {
     concurrency: number;
@@ -46,10 +54,6 @@ export interface Tenant {
     spend30d: number;
   };
   createdAt: number;
-}
-export interface TenantContext {
-  activeTenant: Tenant | null;
-  activeTenantId: string;
 }
 export interface Agent {
   id: string;
@@ -70,7 +74,7 @@ export interface PhoneNumber {
   status: 'active' | 'pending' | 'released';
   routingRules: RoutingRules;
 }
-export type GlobalCall = {
+export interface GlobalCall {
   id: string;
   tenantId: string;
   agentId: string;
@@ -81,13 +85,16 @@ export type GlobalCall = {
   cost: number;
   margin: number;
   status: CallStatus;
+  mediasfu_status: MediaSFUStatus;
+  is_live: boolean;
+  metadata: MediaSFUMetadata;
   providerStatuses: {
     stt: 'ok' | 'error';
     llm: 'ok' | 'error';
     tts: 'ok' | 'error';
   };
   transcript: { role: 'agent' | 'user'; text: string; ts: number }[];
-};
+}
 export type CallSession = GlobalCall;
 export interface BillingRecord {
   id: string;
@@ -106,15 +113,11 @@ export interface AuditLog {
   reason: string;
   timestamp: number;
   severity: 'low' | 'medium' | 'high' | 'critical';
-  payload?: {
-    before?: any;
-    after?: any;
-    [key: string]: any;
-  };
+  payload?: any;
 }
 export interface Incident {
   id: string;
-  type: 'provider_latency' | 'api_error' | 'billing_failure' | 'abuse_spike';
+  type: string;
   severity: 'low' | 'medium' | 'high' | 'critical';
   tenantId: string | null;
   status: 'open' | 'investigating' | 'resolved';
@@ -136,5 +139,3 @@ export interface ProviderMetric {
   errorRate: number;
 }
 export interface User { id: string; name: string; }
-export interface Chat { id: string; title: string; }
-export interface ChatMessage { id: string; chatId: string; userId: string; text: string; ts: number; }
