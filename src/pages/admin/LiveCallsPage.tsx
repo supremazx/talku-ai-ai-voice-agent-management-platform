@@ -1,12 +1,14 @@
 import React from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Shield, Radio, Building2, Clock, ShieldAlert, Zap, PlayCircle } from 'lucide-react';
+import { Shield, Radio, Building2, Clock, ShieldAlert, Zap, PlayCircle, BarChart3, Activity } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import { api } from '@/lib/api-client';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { GlobalCall } from '@shared/types';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
@@ -14,7 +16,7 @@ export default function AdminLiveCallsPage() {
   const queryClient = useQueryClient();
   const { data: liveCalls, isLoading } = useQuery({
     queryKey: ['admin-calls-live'],
-    queryFn: () => api<{ items: GlobalCall[] }>('/api/admin/calls/live'),
+    queryFn: () => api<{ items: GlobalCall[], stats?: any }>('/api/admin/calls/live'),
     refetchInterval: 2000,
   });
   const simulateCall = useMutation({
@@ -24,6 +26,11 @@ export default function AdminLiveCallsPage() {
       toast.success('Simulation session initiated');
     }
   });
+  const latencyData = [
+    { stage: 'STT', avg: 142, p95: 210 },
+    { stage: 'LLM', avg: 850, p95: 1200 },
+    { stage: 'TTS', avg: 410, p95: 580 },
+  ];
   return (
     <AppLayout container>
       <div className="space-y-8 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-10 lg:py-12">
@@ -36,8 +43,8 @@ export default function AdminLiveCallsPage() {
             <p className="text-muted-foreground">Real-time infrastructure-wide telephony traffic surveillance.</p>
           </div>
           <div className="flex items-center gap-3">
-            <Button 
-              variant="outline" 
+            <Button
+              variant="outline"
               className="gap-2 border-orange-200 text-orange-700 hover:bg-orange-50"
               onClick={() => simulateCall.mutate()}
               disabled={simulateCall.isPending}
@@ -50,6 +57,53 @@ export default function AdminLiveCallsPage() {
               <span className="text-lg font-bold">99.9%</span>
             </div>
           </div>
+        </div>
+        <div className="grid gap-6 md:grid-cols-3">
+          <Card className="md:col-span-2 border-muted/40 shadow-soft">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-bold flex items-center gap-2">
+                <Activity className="h-4 w-4 text-blue-500" />
+                Pipeline Latency Distribution (ms)
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="h-[200px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={latencyData} layout="vertical">
+                  <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="hsl(var(--border))" />
+                  <XAxis type="number" fontSize={10} axisLine={false} tickLine={false} />
+                  <YAxis dataKey="stage" type="category" fontSize={10} axisLine={false} tickLine={false} />
+                  <Tooltip 
+                    cursor={{ fill: 'transparent' }}
+                    contentStyle={{ borderRadius: '8px', border: '1px solid hsl(var(--border))' }}
+                  />
+                  <Bar dataKey="avg" fill="#ea580c" radius={[0, 4, 4, 0]} barSize={20} />
+                  <Bar dataKey="p95" fill="#f9731640" radius={[0, 4, 4, 0]} barSize={10} />
+                </BarChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+          <Card className="border-muted/40 shadow-soft">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-bold flex items-center gap-2">
+                <Zap className="h-4 w-4 text-orange-500" />
+                Provider Health
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-muted-foreground uppercase font-bold tracking-tighter">MediaSFU</span>
+                <Badge variant="outline" className="text-emerald-500 border-emerald-500/20 h-4 px-1">99.9%</Badge>
+              </div>
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-muted-foreground uppercase font-bold tracking-tighter">OpenAI Realtime</span>
+                <Badge variant="outline" className="text-emerald-500 border-emerald-500/20 h-4 px-1">99.2%</Badge>
+              </div>
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-muted-foreground uppercase font-bold tracking-tighter">ElevenLabs V2</span>
+                <Badge variant="outline" className="text-amber-500 border-amber-500/20 h-4 px-1">87.5%</Badge>
+              </div>
+            </CardContent>
+          </Card>
         </div>
         <div className="rounded-xl border bg-card shadow-soft overflow-hidden">
           <Table>
@@ -73,9 +127,9 @@ export default function AdminLiveCallsPage() {
                   (liveCalls?.items || []).map((call) => (
                     <motion.tr
                       key={call.id}
-                      initial={{ opacity: 0, x: -20 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      exit={{ opacity: 0, scale: 0.95 }}
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, scale: 0.98 }}
                       className="hover:bg-muted/20"
                     >
                       <TableCell>

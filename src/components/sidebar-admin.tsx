@@ -10,7 +10,8 @@ import {
   Settings,
   Mic,
   BadgeAlert,
-  Radio
+  Radio,
+  Zap
 } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
@@ -40,6 +41,7 @@ export function SidebarAdmin(): JSX.Element {
     { title: "Live Monitor", icon: Radio, url: "/admin/live", badge: liveCount > 0 ? liveCount : null },
     { title: "Tenants", icon: Building2, url: "/admin/tenants" },
     { title: "Global Calls", icon: ListChecks, url: "/admin/logs" },
+    { title: "Integrations", icon: Zap, url: "/admin/integrations" },
     { title: "Usage & Costs", icon: BarChart3, url: "/admin/usage" },
     { title: "Billing Ops", icon: WalletCards, url: "/admin/billing" },
     { title: "System Health", icon: Activity, url: "/admin/health" },

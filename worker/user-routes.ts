@@ -11,17 +11,21 @@ import {
 import { ok, bad, notFound, Index } from './core-utils';
 import type { GlobalCall, MediaSFUEvent } from "@shared/types";
 import { MOCK_BILLING_RECORDS } from "@shared/mock-data";
-/**
- * Diagnostic trace for worker initialization
- */
 console.log("[WORKER] Initializing user routes...");
 export function userRoutes(app: Hono<{ Bindings: Env }>) {
   const getTenantId = (c: any) => c.req.header('X-Tenant-Id') || 'tenant-1';
+  // --- INTEGRATIONS ---
+  app.get('/api/admin/integrations/status', async (c) => {
+    return ok(c, {
+      mediasfu: 'online',
+      openai: 'online',
+      elevenlabs: 'online',
+      deepgram: 'online',
+      regions: ['us-east-1', 'eu-west-1', 'ap-southeast-1']
+    });
+  });
   // --- MEDIASFU WEBHOOKS ---
   app.post('/api/webhooks/mediasfu', async (c) => {
-    // MediaSFU API Key Security Check (Injected via Environment/Secrets)
-    // In a real production scenario, you would verify a signature or a secret header
-    // const apiKey = c.env.MEDIASFU_API_KEY; 
     const payload = await c.req.json() as {
       event: MediaSFUEvent;
       sessionId: string;
@@ -43,9 +47,9 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
           startTime: payload.ts || Date.now(),
           is_live: true,
           mediasfu_status: 'initiating',
-          metadata: { 
-            ...CallSessionEntity.initialState.metadata, 
-            sessionId: payload.sessionId 
+          metadata: {
+            ...CallSessionEntity.initialState.metadata,
+            sessionId: payload.sessionId
           }
         };
       }
@@ -78,7 +82,7 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
       await inst.save(state);
       return ok(c, { received: true, sid: payload.sessionId });
     } catch (err) {
-      console.error(`[WORKER] MediaSFU Webhook processing failed: ${err}`);
+      console.error(`[WORKER] MediaSFU Webhook error: ${err}`);
       return bad(c, 'Internal processing error');
     }
   });
@@ -87,19 +91,22 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
     const sessionId = `sim-${crypto.randomUUID().slice(0, 8)}`;
     const tenantId = 'tenant-1';
     try {
-      const agentList = await AgentEntity.list(c.env, null, 1);
-      const agent = agentList?.items?.[0];
       const call: GlobalCall = {
         ...CallSessionEntity.initialState,
         id: sessionId,
         tenantId,
-        agentId: agent?.id || 'agent-1',
-        fromNumber: '+15551234567',
-        toNumber: '+18881239999',
+        agentId: 'agent-1',
+        fromNumber: '+1555' + Math.floor(Math.random() * 9000000 + 1000000),
+        toNumber: '+1888' + Math.floor(Math.random() * 9000000 + 1000000),
         startTime: Date.now(),
         is_live: true,
         mediasfu_status: 'connected',
-        transcript: [{ role: 'agent', text: 'Talku.ai Mission Control Online. Simulation active.', ts: Date.now() }]
+        metadata: {
+          ...CallSessionEntity.initialState.metadata,
+          sessionId,
+          latencies: { stt_ms: 120, llm_ms: 840, tts_ms: 390 }
+        },
+        transcript: [{ role: 'agent', text: 'Talku.ai Global Node Online. Session established.', ts: Date.now() }]
       };
       await new CallSessionEntity(c.env, sessionId).save(call);
       const idx = new Index<string>(c.env, 'call-sessions');
@@ -109,7 +116,7 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
       return bad(c, `Simulation failed: ${err}`);
     }
   });
-  // --- LIVE CALLS ---
+  // --- API ROUTES ---
   app.get('/api/app/calls/live', async (c) => {
     const tenantId = getTenantId(c);
     const active = await CallSessionEntity.listActive(c.env) || [];
@@ -119,7 +126,6 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
     const active = await CallSessionEntity.listActive(c.env) || [];
     return ok(c, { items: active });
   });
-  // --- AGENTS ---
   app.get('/api/app/agents', async (c) => {
     const tenantId = getTenantId(c);
     const list = await AgentEntity.list(c.env);
@@ -136,38 +142,23 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
     });
     return ok(c, created);
   });
-  // --- NUMBERS ---
   app.get('/api/app/numbers', async (c) => {
     const tenantId = getTenantId(c);
     const list = await PhoneNumberEntity.list(c.env);
     return ok(c, { items: list?.items?.filter(n => n.tenantId === tenantId) || [] });
   });
-  app.patch('/api/app/numbers/:id', async (c) => {
-    const tenantId = getTenantId(c);
-    const inst = new PhoneNumberEntity(c.env, c.req.param('id'));
-    if (!await inst.exists()) return notFound(c);
-    const state = await inst.getState();
-    if (!state || state.tenantId !== tenantId) return bad(c, 'Unauthorized');
-    const updates = await c.req.json();
-    await inst.patch(updates);
-    return ok(c, await inst.getState());
-  });
-  // --- BILLING ---
   app.get('/api/billing', async (c) => {
     const tenantId = getTenantId(c);
     const isAdmin = !c.req.path.includes('/app/');
-    if (isAdmin) {
-       return ok(c, { items: MOCK_BILLING_RECORDS });
-    }
+    if (isAdmin) return ok(c, { items: MOCK_BILLING_RECORDS });
     return ok(c, { items: MOCK_BILLING_RECORDS.filter(r => r.tenantId === tenantId) });
   });
-  // --- ADMIN ---
   app.get('/api/admin/stats', async (c) => {
     const tenants = await TenantEntity.list(c.env);
     return ok(c, {
       totalActiveTenants: tenants?.items?.filter(t => t.status === 'active').length || 0,
       globalCallVolume: Array.from({ length: 7 }).map((_, i) => ({
-        date: `2024-05-${10 + i}`,
+        date: `05-${10 + i}`,
         count: Math.floor(Math.random() * 50) + 10
       })),
       totalNetMargin: 420.50,

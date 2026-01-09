@@ -1,19 +1,19 @@
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Phone, Globe, Settings2, Plus, Clock, ShieldCheck, Radio, Activity } from 'lucide-react';
+import { Phone, Settings2, Plus, Clock, ShieldCheck, Radio, Activity, Hash } from 'lucide-react';
 import { api } from '@/lib/api-client';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetFooter } from '@/components/ui/sheet';
-import { Input } from '@/components/ui/input';
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { PhoneNumber, Agent, GlobalCall } from '@shared/types';
 import { useTenantStore } from '@/lib/tenant-store';
 import { toast } from 'sonner';
+import { EmptyState } from '@/components/EmptyState';
 export default function NumbersPage() {
   const queryClient = useQueryClient();
   const activeTenantId = useTenantStore((s) => s.activeTenantId);
@@ -50,74 +50,82 @@ export default function NumbersPage() {
       setSelectedNum(null);
     }
   });
-  const getActiveCallCount = (e164: string) => {
-    return liveCalls?.items?.filter(cl => cl.toNumber === e164 || cl.fromNumber === e164).length ?? 0;
-  };
+  const numberList = numbers?.items ?? [];
   return (
     <AppLayout container>
-      <div className="space-y-8">
+      <div className="space-y-8 animate-fade-in">
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-3xl font-bold tracking-tight">Numbers & Routing</h1>
             <p className="text-muted-foreground">Manage your E.164 telephony inventory and AI mapping.</p>
           </div>
-          <Button className="btn-gradient">
-            <Plus className="mr-2 h-4 w-4" /> Provision Number
-          </Button>
+          {numberList.length > 0 && (
+            <Button className="btn-gradient">
+              <Plus className="mr-2 h-4 w-4" /> Provision Number
+            </Button>
+          )}
         </div>
-        <div className="rounded-xl border bg-card shadow-soft overflow-hidden">
-          <Table>
-            <TableHeader className="bg-muted/50">
-              <TableRow>
-                <TableHead>Number</TableHead>
-                <TableHead>Live Status</TableHead>
-                <TableHead>Assigned Agent</TableHead>
-                <TableHead>Routing Features</TableHead>
-                <TableHead className="text-right">Manage</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {numbersLoading ? (
-                <TableRow><TableCell colSpan={5} className="text-center py-20 animate-pulse">Scanning backbone...</TableCell></TableRow>
-              ) : (
-                (numbers?.items || []).map((num) => (
+        {numbersLoading ? (
+          <div className="space-y-4">
+            <div className="h-10 w-full animate-pulse bg-muted/20 rounded-md" />
+            <div className="h-64 w-full animate-pulse bg-muted/20 rounded-xl" />
+          </div>
+        ) : numberList.length === 0 ? (
+          <EmptyState
+            icon={Hash}
+            title="No Numbers Provisioned"
+            description="You need a phone number to receive incoming calls. Provision a number from our global inventory to get started."
+            actionLabel="Browse Number Inventory"
+            onAction={() => toast.info('Inventory browser coming soon')}
+          />
+        ) : (
+          <div className="rounded-xl border bg-card shadow-soft overflow-hidden">
+            <Table>
+              <TableHeader className="bg-muted/50">
+                <TableRow>
+                  <TableHead>Number</TableHead>
+                  <TableHead>Live Traffic</TableHead>
+                  <TableHead>Agent Assignment</TableHead>
+                  <TableHead>Availability</TableHead>
+                  <TableHead className="text-right">Manage</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {numberList.map((num) => (
                   <TableRow key={num.id} className="group hover:bg-muted/30">
                     <TableCell className="font-mono font-bold text-primary">{num.e164}</TableCell>
                     <TableCell>
-                      {getActiveCallCount(num.e164) > 0 ? (
-                        <Badge className="bg-emerald-500/10 text-emerald-600 border-emerald-500/20 gap-1.5">
-                          <Radio className="h-3 w-3 animate-pulse" />
-                          {getActiveCallCount(num.e164)} Active
+                      {liveCalls?.items?.some(c => c.toNumber === num.e164) ? (
+                        <Badge className="bg-emerald-500/10 text-emerald-600 border-emerald-500/20 gap-1.5 h-6">
+                          <Radio className="h-3 w-3 animate-pulse" /> Active
                         </Badge>
                       ) : (
-                        <span className="text-xs text-muted-foreground flex items-center gap-1.5">
-                          <Activity className="h-3 w-3 opacity-30" />
-                          Idle
+                        <span className="text-xs text-muted-foreground flex items-center gap-1.5 opacity-50">
+                          <Activity className="h-3 w-3" /> Idle
                         </span>
                       )}
                     </TableCell>
                     <TableCell>
-                      <Badge variant={num.agentId ? 'secondary' : 'outline'}>
+                      <Badge variant={num.agentId ? 'secondary' : 'outline'} className="text-[10px] uppercase h-6">
                         {agents?.items.find(a => a.id === num.agentId)?.name || 'Unassigned'}
                       </Badge>
                     </TableCell>
                     <TableCell>
-                      <div className="flex items-center gap-2">
-                        {num.routingRules.officeHours.enabled && <Clock className="h-3 w-3 text-orange-500" />}
-                        {num.routingRules.fallbackNumber && <ShieldCheck className="h-3 w-3 text-blue-500" />}
-                      </div>
+                      <Badge variant="outline" className="text-[10px] uppercase font-bold tracking-tight h-6">
+                        {num.routingRules.officeHours.enabled ? 'Office Hours Only' : '24/7 Availability'}
+                      </Badge>
                     </TableCell>
                     <TableCell className="text-right">
-                      <Button variant="ghost" size="icon" onClick={() => setSelectedNum(num)} className="h-8 w-8">
+                      <Button variant="ghost" size="icon" onClick={() => setSelectedNum(num)} className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity">
                         <Settings2 className="h-4 w-4" />
                       </Button>
                     </TableCell>
                   </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </div>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        )}
         <Sheet open={!!selectedNum} onOpenChange={() => setSelectedNum(null)}>
           <SheetContent className="sm:max-w-md">
             <SheetHeader>
@@ -134,14 +142,10 @@ export default function NumbersPage() {
                       defaultValue={selectedNum.agentId || 'none'}
                       onValueChange={(val) => updateNumber.mutate({ agentId: val === 'none' ? null : val })}
                     >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select an AI Agent" />
-                      </SelectTrigger>
+                      <SelectTrigger><SelectValue placeholder="Select an AI Agent" /></SelectTrigger>
                       <SelectContent>
                         <SelectItem value="none">None (Hang up)</SelectItem>
-                        {agents?.items.map(a => (
-                          <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>
-                        ))}
+                        {agents?.items.map(a => <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>)}
                       </SelectContent>
                     </Select>
                   </div>

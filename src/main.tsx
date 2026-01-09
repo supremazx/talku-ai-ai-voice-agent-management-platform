@@ -15,6 +15,7 @@ import '@/index.css'
 // Pages
 import { HomePage as AdminHomePage } from '@/pages/HomePage'
 import TenantsPage from '@/pages/admin/TenantsPage'
+import IntegrationsPage from '@/pages/admin/IntegrationsPage'
 import AdminCallLogsPage from '@/pages/CallLogsPage'
 import AdminUsagePage from '@/pages/admin/UsagePage'
 import AdminHealthPage from '@/pages/admin/HealthPage'
@@ -63,6 +64,7 @@ const router = createBrowserRouter([
       { index: true, element: <AdminHomePage /> },
       { path: "live", element: <AdminLiveCallsPage /> },
       { path: "tenants", element: <TenantsPage /> },
+      { path: "integrations", element: <IntegrationsPage /> },
       { path: "logs", element: <AdminCallLogsPage /> },
       { path: "usage", element: <AdminUsagePage /> },
       { path: "health", element: <AdminHealthPage /> },
