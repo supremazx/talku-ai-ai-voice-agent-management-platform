@@ -8,14 +8,14 @@ import type {
   AuditLog,
   Incident,
   BusinessHours
-} from "@shared/types";
+} from "../shared/types";
 import {
   MOCK_TENANTS,
   MOCK_INTERNAL_USERS,
   MOCK_CALLS,
   MOCK_AUDIT_LOGS,
   MOCK_INCIDENTS
-} from "@shared/mock-data";
+} from "../shared/mock-data";
 const DEFAULT_HOURS: BusinessHours = {
   enabled: false,
   timezone: "UTC",
@@ -97,7 +97,7 @@ export class CallSessionEntity extends IndexedEntity<GlobalCall> {
     transcript: []
   };
   static async listActive(env: any): Promise<GlobalCall[]> {
-    const list = await this.list(env);
+    const list = await CallSessionEntity.list(env);
     return list.items.filter(c => c.is_live);
   }
 }

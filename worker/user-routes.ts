@@ -9,8 +9,8 @@ import {
   IncidentEntity
 } from "./entities";
 import { ok, bad, notFound, Index } from './core-utils';
-import { GlobalCall, MediaSFUEvent } from "@shared/types";
-import { MOCK_BILLING_RECORDS } from "@shared/mock-data";
+import { GlobalCall, MediaSFUEvent } from "../shared/types";
+import { MOCK_BILLING_RECORDS } from "../shared/mock-data";
 export function userRoutes(app: Hono<{ Bindings: Env }>) {
   const getTenantId = (c: any) => c.req.header('X-Tenant-Id') || 'tenant-1';
   // --- MEDIASFU WEBHOOKS ---
@@ -70,7 +70,8 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
   app.post('/api/admin/simulate-call', async (c) => {
     const sessionId = `sim-${crypto.randomUUID().slice(0, 8)}`;
     const tenantId = 'tenant-1';
-    const agent = (await AgentEntity.list(c.env, null, 1)).items[0];
+    const agentList = await AgentEntity.list(c.env, null, 1);
+    const agent = agentList?.items?.[0];
     const call: GlobalCall = {
       ...CallSessionEntity.initialState,
       id: sessionId,
@@ -92,18 +93,18 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
   // --- LIVE CALLS ---
   app.get('/api/app/calls/live', async (c) => {
     const tenantId = getTenantId(c);
-    const active = await CallSessionEntity.listActive(c.env);
+    const active = await CallSessionEntity.listActive(c.env) || [];
     return ok(c, { items: active.filter(cl => cl.tenantId === tenantId) });
   });
   app.get('/api/admin/calls/live', async (c) => {
-    const active = await CallSessionEntity.listActive(c.env);
+    const active = await CallSessionEntity.listActive(c.env) || [];
     return ok(c, { items: active });
   });
   // --- AGENTS ---
   app.get('/api/app/agents', async (c) => {
     const tenantId = getTenantId(c);
     const list = await AgentEntity.list(c.env);
-    return ok(c, { items: list.items.filter(a => a.tenantId === tenantId) });
+    return ok(c, { items: list?.items?.filter(a => a.tenantId === tenantId) || [] });
   });
   app.post('/api/app/agents', async (c) => {
     const tenantId = getTenantId(c);
@@ -114,20 +115,20 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
       id: crypto.randomUUID(),
       tenantId
     });
-    return ok(c, created);
+    return ok(c, created || {});
   });
   // --- NUMBERS ---
   app.get('/api/app/numbers', async (c) => {
     const tenantId = getTenantId(c);
     const list = await PhoneNumberEntity.list(c.env);
-    return ok(c, { items: list.items.filter(n => n.tenantId === tenantId) });
+    return ok(c, { items: list?.items?.filter(n => n.tenantId === tenantId) || [] });
   });
   app.patch('/api/app/numbers/:id', async (c) => {
     const tenantId = getTenantId(c);
     const inst = new PhoneNumberEntity(c.env, c.req.param('id'));
     if (!await inst.exists()) return notFound(c);
     const state = await inst.getState();
-    if (state.tenantId !== tenantId) return bad(c, 'Unauthorized');
+    if (!state || state.tenantId !== tenantId) return bad(c, 'Unauthorized');
     const updates = await c.req.json();
     await inst.patch(updates);
     return ok(c, await inst.getState());
@@ -145,10 +146,10 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
   app.get('/api/admin/stats', async (c) => {
     const tenants = await TenantEntity.list(c.env);
     return ok(c, {
-      totalActiveTenants: tenants.items.filter(t => t.status === 'active').length,
-      globalCallVolume: Array.from({ length: 7 }).map((_, i) => ({ 
-        date: `2024-05-${10 + i}`, 
-        count: Math.floor(Math.random() * 50) + 10 
+      totalActiveTenants: tenants?.items?.filter(t => t.status === 'active').length || 0,
+      globalCallVolume: Array.from({ length: 7 }).map((_, i) => ({
+        date: `2024-05-${10 + i}`,
+        count: Math.floor(Math.random() * 50) + 10
       })),
       totalNetMargin: 420.50,
       activeIncidents: 0,
@@ -157,13 +158,16 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
     });
   });
   app.get('/api/admin/tenants', async (c) => {
-    return ok(c, await TenantEntity.list(c.env));
+    const tenants = await TenantEntity.list(c.env);
+    return ok(c, tenants || { items: [] });
   });
   app.get('/api/admin/audit-logs', async (c) => {
-    return ok(c, await AuditLogEntity.list(c.env));
+    const logs = await AuditLogEntity.list(c.env);
+    return ok(c, logs || { items: [] });
   });
   app.get('/api/admin/incidents', async (c) => {
-    return ok(c, await IncidentEntity.list(c.env));
+    const incidents = await IncidentEntity.list(c.env);
+    return ok(c, incidents || { items: [] });
   });
   app.get('/api/admin/usage-stats', async (c) => {
     return ok(c, {
@@ -177,9 +181,10 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
   app.get('/api/app/calls', async (c) => {
     const tenantId = getTenantId(c);
     const list = await CallSessionEntity.list(c.env);
-    return ok(c, { items: list.items.filter(cl => cl.tenantId === tenantId) });
+    return ok(c, { items: list?.items?.filter(cl => cl.tenantId === tenantId) || [] });
   });
   app.get('/api/calls', async (c) => {
-    return ok(c, await CallSessionEntity.list(c.env));
+    const list = await CallSessionEntity.list(c.env);
+    return ok(c, list || { items: [] });
   });
 }
