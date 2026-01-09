@@ -8,14 +8,14 @@ import type {
   AuditLog,
   Incident,
   BusinessHours
-} from "../shared/types";
+} from "@shared/types";
 import {
   MOCK_TENANTS,
   MOCK_INTERNAL_USERS,
   MOCK_CALLS,
   MOCK_AUDIT_LOGS,
   MOCK_INCIDENTS
-} from "../shared/mock-data";
+} from "@shared/mock-data";
 const DEFAULT_HOURS: BusinessHours = {
   enabled: false,
   timezone: "UTC",
@@ -96,9 +96,19 @@ export class CallSessionEntity extends IndexedEntity<GlobalCall> {
     providerStatuses: { stt: 'ok', llm: 'ok', tts: 'ok' },
     transcript: []
   };
+  /**
+   * Strictly typed active call lookup. 
+   * Leverages the IndexedEntity list helper with explicit type safety.
+   */
   static async listActive(env: any): Promise<GlobalCall[]> {
-    const list = await CallSessionEntity.list(env);
-    return list.items.filter(c => c.is_live);
+    try {
+      const list = await CallSessionEntity.list(env);
+      if (!list || !list.items) return [];
+      return list.items.filter(c => c && c.is_live);
+    } catch (err) {
+      console.error(`[ENTITY] Failed to list active calls: ${err}`);
+      return [];
+    }
   }
 }
 export class AuditLogEntity extends IndexedEntity<AuditLog> {
@@ -119,6 +129,14 @@ export class AuditLogEntity extends IndexedEntity<AuditLog> {
 export class IncidentEntity extends IndexedEntity<Incident> {
   static readonly entityName = "incident";
   static readonly indexName = "incidents";
-  static readonly initialState: Incident = { id: "", type: "api_error", severity: "low", tenantId: null, status: "open", description: "", createdAt: 0 };
+  static readonly initialState: Incident = { 
+    id: "", 
+    type: "api_error", 
+    severity: "low", 
+    tenantId: null, 
+    status: "open", 
+    description: "", 
+    createdAt: 0 
+  };
   static seedData = MOCK_INCIDENTS;
 }

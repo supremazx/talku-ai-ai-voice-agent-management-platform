@@ -9,12 +9,19 @@ import {
   IncidentEntity
 } from "./entities";
 import { ok, bad, notFound, Index } from './core-utils';
-import { GlobalCall, MediaSFUEvent } from "../shared/types";
-import { MOCK_BILLING_RECORDS } from "../shared/mock-data";
+import type { GlobalCall, MediaSFUEvent } from "@shared/types";
+import { MOCK_BILLING_RECORDS } from "@shared/mock-data";
+/**
+ * Diagnostic trace for worker initialization
+ */
+console.log("[WORKER] Initializing user routes...");
 export function userRoutes(app: Hono<{ Bindings: Env }>) {
   const getTenantId = (c: any) => c.req.header('X-Tenant-Id') || 'tenant-1';
   // --- MEDIASFU WEBHOOKS ---
   app.post('/api/webhooks/mediasfu', async (c) => {
+    // MediaSFU API Key Security Check (Injected via Environment/Secrets)
+    // In a real production scenario, you would verify a signature or a secret header
+    // const apiKey = c.env.MEDIASFU_API_KEY; 
     const payload = await c.req.json() as {
       event: MediaSFUEvent;
       sessionId: string;
@@ -22,73 +29,85 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
       data: any;
       ts: number;
     };
+    if (!payload.sessionId) return bad(c, 'Missing sessionId');
     const inst = new CallSessionEntity(c.env, payload.sessionId);
     let state: GlobalCall;
-    if (await inst.exists()) {
-      state = await inst.getState();
-    } else {
-      state = {
-        ...CallSessionEntity.initialState,
-        id: payload.sessionId,
-        tenantId: payload.tenantId,
-        startTime: payload.ts,
-        is_live: true,
-        mediasfu_status: 'initiating',
-        metadata: { ...CallSessionEntity.initialState.metadata, sessionId: payload.sessionId }
-      };
+    try {
+      if (await inst.exists()) {
+        state = await inst.getState();
+      } else {
+        state = {
+          ...CallSessionEntity.initialState,
+          id: payload.sessionId,
+          tenantId: payload.tenantId || 'tenant-1',
+          startTime: payload.ts || Date.now(),
+          is_live: true,
+          mediasfu_status: 'initiating',
+          metadata: { 
+            ...CallSessionEntity.initialState.metadata, 
+            sessionId: payload.sessionId 
+          }
+        };
+      }
+      switch (payload.event) {
+        case 'call.started':
+          state.mediasfu_status = 'ringing';
+          break;
+        case 'call.answered':
+          state.mediasfu_status = 'connected';
+          break;
+        case 'stt.partial':
+        case 'llm.response':
+          if (payload.data?.text) {
+            state.transcript.push({
+              role: payload.event === 'stt.partial' ? 'user' : 'agent',
+              text: payload.data.text,
+              ts: payload.ts || Date.now()
+            });
+          }
+          break;
+        case 'call.ended':
+          state.mediasfu_status = 'ended';
+          state.is_live = false;
+          state.status = 'completed';
+          state.duration = Math.floor(((payload.ts || Date.now()) - state.startTime) / 1000);
+          state.cost = state.duration * 0.015;
+          state.margin = state.cost * 0.4;
+          break;
+      }
+      await inst.save(state);
+      return ok(c, { received: true, sid: payload.sessionId });
+    } catch (err) {
+      console.error(`[WORKER] MediaSFU Webhook processing failed: ${err}`);
+      return bad(c, 'Internal processing error');
     }
-    switch (payload.event) {
-      case 'call.started':
-        state.mediasfu_status = 'ringing';
-        break;
-      case 'call.answered':
-        state.mediasfu_status = 'connected';
-        break;
-      case 'stt.partial':
-      case 'llm.response':
-        if (payload.data?.text) {
-          state.transcript.push({
-            role: payload.event === 'stt.partial' ? 'user' : 'agent',
-            text: payload.data.text,
-            ts: payload.ts
-          });
-        }
-        break;
-      case 'call.ended':
-        state.mediasfu_status = 'ended';
-        state.is_live = false;
-        state.status = 'completed';
-        state.duration = Math.floor((payload.ts - state.startTime) / 1000);
-        state.cost = state.duration * 0.015;
-        state.margin = state.cost * 0.4;
-        break;
-    }
-    await inst.save(state);
-    return ok(c, { received: true });
   });
   // --- SIMULATION ---
   app.post('/api/admin/simulate-call', async (c) => {
     const sessionId = `sim-${crypto.randomUUID().slice(0, 8)}`;
     const tenantId = 'tenant-1';
-    const agentList = await AgentEntity.list(c.env, null, 1);
-    const agent = agentList?.items?.[0];
-    const call: GlobalCall = {
-      ...CallSessionEntity.initialState,
-      id: sessionId,
-      tenantId,
-      agentId: agent?.id || 'agent-1',
-      fromNumber: '+15551234567',
-      toNumber: '+18881239999',
-      startTime: Date.now(),
-      is_live: true,
-      mediasfu_status: 'connected',
-      transcript: [{ role: 'agent', text: 'Hello, simulated system online.', ts: Date.now() }]
-    };
-    await new CallSessionEntity(c.env, sessionId).save(call);
-    // Fixed: Use Index imported from core-utils instead of require
-    const idx = new Index<string>(c.env, 'call-sessions');
-    await idx.add(sessionId);
-    return ok(c, call);
+    try {
+      const agentList = await AgentEntity.list(c.env, null, 1);
+      const agent = agentList?.items?.[0];
+      const call: GlobalCall = {
+        ...CallSessionEntity.initialState,
+        id: sessionId,
+        tenantId,
+        agentId: agent?.id || 'agent-1',
+        fromNumber: '+15551234567',
+        toNumber: '+18881239999',
+        startTime: Date.now(),
+        is_live: true,
+        mediasfu_status: 'connected',
+        transcript: [{ role: 'agent', text: 'Talku.ai Mission Control Online. Simulation active.', ts: Date.now() }]
+      };
+      await new CallSessionEntity(c.env, sessionId).save(call);
+      const idx = new Index<string>(c.env, 'call-sessions');
+      await idx.add(sessionId);
+      return ok(c, call);
+    } catch (err) {
+      return bad(c, `Simulation failed: ${err}`);
+    }
   });
   // --- LIVE CALLS ---
   app.get('/api/app/calls/live', async (c) => {
@@ -115,7 +134,7 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
       id: crypto.randomUUID(),
       tenantId
     });
-    return ok(c, created || {});
+    return ok(c, created);
   });
   // --- NUMBERS ---
   app.get('/api/app/numbers', async (c) => {
