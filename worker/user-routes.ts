@@ -10,13 +10,14 @@ import {
 } from "./entities";
 import { ok, bad, notFound } from './core-utils';
 import { GlobalCall, MediaSFUEvent } from "@shared/types";
+import { MOCK_BILLING_RECORDS } from "@shared/mock-data";
 export function userRoutes(app: Hono<{ Bindings: Env }>) {
   const getTenantId = (c: any) => c.req.header('X-Tenant-Id') || 'tenant-1';
   // --- MEDIASFU WEBHOOKS ---
   app.post('/api/webhooks/mediasfu', async (c) => {
-    const payload = await c.req.json() as { 
-      event: MediaSFUEvent; 
-      sessionId: string; 
+    const payload = await c.req.json() as {
+      event: MediaSFUEvent;
+      sessionId: string;
       tenantId: string;
       data: any;
       ts: number;
@@ -26,7 +27,6 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
     if (await inst.exists()) {
       state = await inst.getState();
     } else {
-      // First event for this session
       state = {
         ...CallSessionEntity.initialState,
         id: payload.sessionId,
@@ -37,7 +37,6 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
         metadata: { ...CallSessionEntity.initialState.metadata, sessionId: payload.sessionId }
       };
     }
-    // Process Event
     switch (payload.event) {
       case 'call.started':
         state.mediasfu_status = 'ringing';
@@ -48,10 +47,10 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
       case 'stt.partial':
       case 'llm.response':
         if (payload.data?.text) {
-          state.transcript.push({ 
-            role: payload.event === 'stt.partial' ? 'user' : 'agent', 
-            text: payload.data.text, 
-            ts: payload.ts 
+          state.transcript.push({
+            role: payload.event === 'stt.partial' ? 'user' : 'agent',
+            text: payload.data.text,
+            ts: payload.ts
           });
         }
         break;
@@ -66,6 +65,28 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
     }
     await inst.save(state);
     return ok(c, { received: true });
+  });
+  // --- SIMULATION ---
+  app.post('/api/admin/simulate-call', async (c) => {
+    const sessionId = `sim-${crypto.randomUUID().slice(0, 8)}`;
+    const tenantId = 'tenant-1';
+    const agent = (await AgentEntity.list(c.env, null, 1)).items[0];
+    const call: GlobalCall = {
+      ...CallSessionEntity.initialState,
+      id: sessionId,
+      tenantId,
+      agentId: agent?.id || 'agent-1',
+      fromNumber: '+15551234567',
+      toNumber: '+18881239999',
+      startTime: Date.now(),
+      is_live: true,
+      mediasfu_status: 'connected',
+      transcript: [{ role: 'agent', text: 'Hello, simulated system online.', ts: Date.now() }]
+    };
+    await new CallSessionEntity(c.env, sessionId).save(call);
+    const idx = new (require('./core-utils').Index)(c.env, 'call-sessions');
+    await idx.add(sessionId);
+    return ok(c, call);
   });
   // --- LIVE CALLS ---
   app.get('/api/app/calls/live', async (c) => {
@@ -86,11 +107,11 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
   app.post('/api/app/agents', async (c) => {
     const tenantId = getTenantId(c);
     const body = await c.req.json();
-    const created = await AgentEntity.create(c.env, { 
-      ...AgentEntity.initialState, 
-      ...body, 
-      id: crypto.randomUUID(), 
-      tenantId 
+    const created = await AgentEntity.create(c.env, {
+      ...AgentEntity.initialState,
+      ...body,
+      id: crypto.randomUUID(),
+      tenantId
     });
     return ok(c, created);
   });
@@ -110,13 +131,25 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
     await inst.patch(updates);
     return ok(c, await inst.getState());
   });
+  // --- BILLING ---
+  app.get('/api/billing', async (c) => {
+    const tenantId = getTenantId(c);
+    const isAdmin = !c.req.path.includes('/app/');
+    if (isAdmin) {
+       return ok(c, { items: MOCK_BILLING_RECORDS });
+    }
+    return ok(c, { items: MOCK_BILLING_RECORDS.filter(r => r.tenantId === tenantId) });
+  });
   // --- ADMIN ---
   app.get('/api/admin/stats', async (c) => {
     const tenants = await TenantEntity.list(c.env);
     const activeCalls = await CallSessionEntity.listActive(c.env);
     return ok(c, {
       totalActiveTenants: tenants.items.filter(t => t.status === 'active').length,
-      globalCallVolume: [{ date: '2024-05-12', count: activeCalls.length }],
+      globalCallVolume: Array.from({ length: 7 }).map((_, i) => ({ 
+        date: `2024-05-${10 + i}`, 
+        count: Math.floor(Math.random() * 50) + 10 
+      })),
       totalNetMargin: 420.50,
       activeIncidents: 0,
       totalCalls24h: 150,
@@ -136,7 +169,8 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
     return ok(c, {
       providers: [
         { provider: 'openai', volume: 1000, latency: 850, errorRate: 0.01 },
-        { provider: 'elevenlabs', volume: 800, latency: 420, errorRate: 0.02 }
+        { provider: 'elevenlabs', volume: 800, latency: 420, errorRate: 0.02 },
+        { provider: 'deepgram', volume: 600, latency: 150, errorRate: 0.005 }
       ]
     });
   });
@@ -147,8 +181,5 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
   });
   app.get('/api/calls', async (c) => {
     return ok(c, await CallSessionEntity.list(c.env));
-  });
-  app.get('/api/billing', async (c) => {
-    return ok(c, { items: [] });
   });
 }

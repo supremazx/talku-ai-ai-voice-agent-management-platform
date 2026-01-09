@@ -1,17 +1,18 @@
 export interface ApiResponse<T = unknown> {
   success: boolean;
   data?: T;
+  error?: string;
 }
 export type VoiceProvider = 'elevenlabs' | 'openai' | 'deepgram';
 export type CallStatus = 'completed' | 'ongoing' | 'failed' | 'no-answer';
 export type MediaSFUStatus = 'initiating' | 'ringing' | 'connected' | 'ended' | 'recording';
-export type MediaSFUEvent = 
-  | 'call.started' 
-  | 'call.answered' 
-  | 'stt.partial' 
-  | 'llm.response' 
-  | 'tts.played' 
-  | 'recording.saved' 
+export type MediaSFUEvent =
+  | 'call.started'
+  | 'call.answered'
+  | 'stt.partial'
+  | 'llm.response'
+  | 'tts.played'
+  | 'recording.saved'
   | 'call.ended';
 export interface MediaSFUMetadata {
   sessionId: string;
@@ -139,3 +140,10 @@ export interface ProviderMetric {
   errorRate: number;
 }
 export interface User { id: string; name: string; }
+export interface InternalUser {
+  id: string;
+  email: string;
+  name: string;
+  role: 'owner' | 'admin' | 'support' | 'finance' | 'read-only';
+  lastLogin: number;
+}

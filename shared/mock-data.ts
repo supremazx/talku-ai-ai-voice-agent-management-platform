@@ -25,6 +25,7 @@ export const MOCK_CALLS: GlobalCall[] = Array.from({ length: 100 }).map((_, i) =
   const duration = Math.floor(Math.random() * 600) + 30;
   const cost = Number((duration * 0.015).toFixed(4));
   const margin = Number((cost * 0.4).toFixed(4));
+  const sessionId = `sess-${Math.random().toString(36).substr(2, 9)}`;
   return {
     id: `call-${i}`,
     tenantId: tenant.id,
@@ -36,14 +37,22 @@ export const MOCK_CALLS: GlobalCall[] = Array.from({ length: 100 }).map((_, i) =
     cost,
     margin,
     status: i % 15 === 0 ? 'failed' : 'completed',
+    mediasfu_status: 'ended',
+    is_live: false,
+    metadata: {
+      sessionId,
+      latencies: { stt_ms: 120, llm_ms: 850, tts_ms: 400 },
+      provider: 'openai'
+    },
     providerStatuses: {
       stt: 'ok',
       llm: i % 20 === 0 ? 'error' : 'ok',
       tts: 'ok',
     },
     transcript: [
-      { role: 'agent', text: 'Hello, Talku support. How can I assist?', ts: 1000 },
-      { role: 'user', text: 'I need to check a parcel status.', ts: 5000 }
+      { role: 'agent', text: 'Hello, Talku support. How can I assist you today?', ts: 1000 },
+      { role: 'user', text: 'I need to check the status of my recent package delivery.', ts: 5000 },
+      { role: 'agent', text: 'I can certainly help with that. Do you have your tracking number ready?', ts: 8000 }
     ]
   };
 });
@@ -56,9 +65,9 @@ export const MOCK_AUDIT_LOGS: AuditLog[] = Array.from({ length: 40 }).map((_, i)
   reason: 'Automated policy enforcement or manual admin request via ticket #' + (4412 + i),
   timestamp: Date.now() - (i * 3600000 * 4),
   severity: i % 10 === 0 ? 'high' : 'medium',
-  payload: { 
-    before: { status: 'active', credits: 100 }, 
-    after: { status: i % 6 === 1 ? 'suspended' : 'active', credits: 500 } 
+  payload: {
+    before: { status: 'active', credits: 100 },
+    after: { status: i % 6 === 1 ? 'suspended' : 'active', credits: 500 }
   }
 }));
 export const MOCK_INCIDENTS: Incident[] = [
