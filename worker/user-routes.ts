@@ -8,7 +8,7 @@ import {
   AuditLogEntity,
   IncidentEntity
 } from "./entities";
-import { ok, bad, notFound } from './core-utils';
+import { ok, bad, notFound, Index } from './core-utils';
 import { GlobalCall, MediaSFUEvent } from "@shared/types";
 import { MOCK_BILLING_RECORDS } from "@shared/mock-data";
 export function userRoutes(app: Hono<{ Bindings: Env }>) {
@@ -84,7 +84,8 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
       transcript: [{ role: 'agent', text: 'Hello, simulated system online.', ts: Date.now() }]
     };
     await new CallSessionEntity(c.env, sessionId).save(call);
-    const idx = new (require('./core-utils').Index)(c.env, 'call-sessions');
+    // Fixed: Use Index imported from core-utils instead of require
+    const idx = new Index<string>(c.env, 'call-sessions');
     await idx.add(sessionId);
     return ok(c, call);
   });
@@ -143,7 +144,6 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
   // --- ADMIN ---
   app.get('/api/admin/stats', async (c) => {
     const tenants = await TenantEntity.list(c.env);
-    const activeCalls = await CallSessionEntity.listActive(c.env);
     return ok(c, {
       totalActiveTenants: tenants.items.filter(t => t.status === 'active').length,
       globalCallVolume: Array.from({ length: 7 }).map((_, i) => ({ 

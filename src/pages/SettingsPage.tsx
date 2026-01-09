@@ -14,7 +14,7 @@ export default function SettingsPage() {
   const [devMode, setDevMode] = useState(false);
   return (
     <AppLayout container>
-      <div className="space-y-8 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-10 lg:py-12">
+      <div className="space-y-8">
         <div className="flex items-center justify-between">
           <div className="flex flex-col gap-1">
             <h1 className="text-3xl font-bold tracking-tight">Settings</h1>
