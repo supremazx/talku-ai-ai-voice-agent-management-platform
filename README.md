@@ -1,6 +1,6 @@
 # TalkU AI Dashboard
 
-[cloudflarebutton]
+[![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/supremazx/talku-ai-ai-voice-agent-management-platform)
 
 A full-stack chat dashboard built on Cloudflare Workers with Durable Objects for scalable, stateful entities (Users, Chats, Messages). Features a modern React frontend with shadcn/ui, Tailwind CSS, and TanStack Query for data fetching.
 
@@ -106,7 +106,7 @@ bun deploy
 
 This builds the frontend assets and deploys the Worker.
 
-[cloudflarebutton]
+[![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/supremazx/talku-ai-ai-voice-agent-management-platform)
 
 ### Manual Deployment Steps
 
